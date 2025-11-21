@@ -29,13 +29,13 @@ jobs:
 
           # Build arm64
           make clean
-          CFLAGS="-arch arm64 -std=c99 -O2 -Wall -Werror -Wpedantic -pedantic-errors -DMAJOR=25 -DMINOR=11 -DPATCH=21" \
+          CFLAGS="-arch arm64 -std=c99 -O2 -Wall -Werror -Wpedantic -pedantic-errors -DMAJOR=25 -DMINOR=11 -DPATCH=22" \
           LDFLAGS="-arch arm64 -pthread" make
           cp build/vframetest dist/vframetest-arm64
 
           # Build x86_64
           make clean
-          CFLAGS="-arch x86_64 -std=c99 -O2 -Wall -Werror -Wpedantic -pedantic-errors -DMAJOR=25 -DMINOR=11 -DPATCH=21" \
+          CFLAGS="-arch x86_64 -std=c99 -O2 -Wall -Werror -Wpedantic -pedantic-errors -DMAJOR=25 -DMINOR=11 -DPATCH=22" \
           LDFLAGS="-arch x86_64 -pthread" make
           cp build/vframetest dist/vframetest-x86_64
 
