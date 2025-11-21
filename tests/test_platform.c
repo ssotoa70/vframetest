@@ -32,7 +32,9 @@
 
 #include "platform.h"
 
+#ifndef NAME_MAX
 #define NAME_MAX 512
+#endif
 
 typedef struct test_platform_file_t {
 	int fd;
