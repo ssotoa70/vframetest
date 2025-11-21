@@ -1,58 +1,173 @@
-# tframetest
+# vframetest
 
-Tool to test and benchmark writing/reading media frames to/from a disk.
+Professional media frame I/O benchmark and testing tool for cross-platform storage performance evaluation.
 
-This tool is planned to do about the same as closed source binary tool
-`frametest` found on various places from the net, for example from here:
-[https://support.dvsus.com/hc/en-us/articles/212925466-How-to-use-frametest](https://support.dvsus.com/hc/en-us/articles/212925466-How-to-use-frametest).
+**vframetest** is a high-performance benchmarking utility designed to accurately measure disk I/O performance when writing and reading media frames. Perfect for validating storage subsystems, video workflows, and data center configurations.
 
-We aim that tframetest would be almost drop-in replacement for
-the original tool, but there are some differences for example in the supported
-options, functionality, way of working, and in the output.
+## Key Features
 
+- 🎯 **Accurate I/O Benchmarking** - Native direct I/O on all platforms
+- 🖥️ **Cross-Platform** - macOS, Linux, and Windows with native optimizations
+- 📊 **Flexible Testing** - Multiple video profiles, multi-threaded testing
+- 📈 **Rich Output** - CSV export, histograms, detailed timing
+- ⚡ **High Performance** - Configurable parallelism and threading
+- 📦 **Easy to Use** - Pre-built binaries and simple build process
 
-## Compiling
+## Quick Start
 
-To compile for Linux install a C compiler and issue:
+### macOS
+```bash
+curl -L -O https://github.com/ssotoa70/vframetest/releases/download/v3025.10.2/vframetest-macos-universal
+chmod +x vframetest-macos-universal
+mkdir test-data
+./vframetest-macos-universal -w FULLHD-24bit -n 100 -t 4 test-data
+```
 
-	make
+### Linux
+```bash
+wget https://github.com/ssotoa70/vframetest/releases/download/v3025.10.2/vframetest-linux-x86_64
+chmod +x vframetest-linux-x86_64
+mkdir test-data
+./vframetest-linux-x86_64 -w FULLHD-24bit -n 100 -t 4 test-data
+```
 
-This should build `tframetest` binary into `build` folder.
+### Windows
+```powershell
+Invoke-WebRequest -Uri "https://github.com/ssotoa70/vframetest/releases/download/v3025.10.2/vframetest-windows-x86_64.exe" -OutFile "vframetest.exe"
+mkdir test-data
+.\vframetest.exe -w FULLHD-24bit -n 100 -t 4 test-data
+```
 
-To build for FreeBSD you need to use `gmake` instead since the Makefile is not
-compatible with FreeBSD `make`.
+## Installation
 
-To build Windows binary there's script `build_win.sh` or the `make win` target.
-One can cross-compile the tool in a Linux system.
-We have tested `i686-w64-mingw32-gcc` and `x86_64-w64-mingw32-gcc` available
-in Ubuntu/Debian repository as `mingw-w64`.
-The default build for Windows is 32-bit but 64-bit build is possible as well:
+### macOS
+```bash
+# Pre-built binary
+curl -L -O https://github.com/ssotoa70/vframetest/releases/download/v3025.10.2/vframetest-macos-universal
+chmod +x vframetest-macos-universal
+sudo mv vframetest-macos-universal /usr/local/bin/vframetest
 
-	sudo apt install mingw-w64 zip
-	./build_win.sh
-	CROSS=x86_64-w64-mingw32- ./build_win.sh
+# Build from source
+git clone https://github.com/ssotoa70/vframetest.git
+cd vframetest
+make clean && make
+```
 
+### Linux
+```bash
+# Pre-built binary
+wget https://github.com/ssotoa70/vframetest/releases/download/v3025.10.2/vframetest-linux-x86_64
+chmod +x vframetest-linux-x86_64
+sudo mv vframetest-linux-x86_64 /usr/local/bin/vframetest
+
+# Build from source (Ubuntu/Debian)
+sudo apt-get install build-essential git
+git clone https://github.com/ssotoa70/vframetest.git
+cd vframetest
+make clean && make
+
+# Build from source (RHEL/CentOS)
+sudo yum groupinstall "Development Tools"
+sudo yum install git
+git clone https://github.com/ssotoa70/vframetest.git
+cd vframetest
+make clean && make
+```
+
+### Windows
+```powershell
+# Pre-built binary
+$url = "https://github.com/ssotoa70/vframetest/releases/download/v3025.10.2/vframetest-windows-x86_64.exe"
+$dest = "C:\Program Files\vframetest\vframetest.exe"
+New-Item -ItemType Directory -Force -Path "C:\Program Files\vframetest"
+Invoke-WebRequest -Uri $url -OutFile $dest
+Unblock-File -Path $dest
+
+# Build from source (WSL2)
+wsl --install -d Ubuntu
+wsl -d Ubuntu -- bash -c "sudo apt-get update && sudo apt-get install -y build-essential git && git clone https://github.com/ssotoa70/vframetest.git && cd vframetest && make"
+```
 
 ## Usage
 
-The basic usage is to write first some frames, and then to read them.
-Most used options are: frame size, number of frames, and number of threads.
-To write 1000 of 2k sized frames with 4 threads do:
+```bash
+# Show help
+vframetest --help
 
-	mkdir tst
-	build/tframetest -w 2k -n 1000 -t 4 tst
+# List profiles
+vframetest --list-profiles
 
-To perform read test for those freshly written frames:
+# Simple write test
+mkdir test-data
+vframetest -w FULLHD-24bit -n 100 test-data
 
-	build/tframetest -r -n 1000 -t 4 tst
+# Multi-threaded write
+vframetest -w 4K-24bit -n 500 -t 4 test-data
 
-There's more options available, please see the help for more info:
+# CSV export
+vframetest -w FULLHD-24bit -n 200 -t 2 -c test-data > results.csv
 
-	build/tframetest --help
+# Read test
+vframetest -r -n 200 test-data
 
+# Random access
+vframetest -r -n 100 --random test-data
+
+# Performance histogram
+vframetest -w FULLHD-24bit -n 500 -t 4 --histogram test-data
+```
+
+## Platform-Specific Features
+
+- **macOS**: F_NOCACHE for native direct I/O, F_FULLFSYNC for data integrity, Universal Binary support
+- **Linux**: O_DIRECT for kernel-bypass I/O, full POSIX support, multiple architecture support
+- **Windows**: FILE_FLAG_NO_BUFFERING for direct access, FILE_FLAG_WRITE_THROUGH for data durability
+
+## Documentation
+
+- `README.md` - This file
+- `docs/MACOS.md` - macOS installation and usage guide
+- `docs/LINUX.md` - Linux installation and usage guide
+- `docs/WINDOWS.md` - Windows installation and usage guide
+- `BUILD.md` - Building from source for all platforms
+
+## Performance Tips
+
+### macOS
+1. Use the universal binary for compatibility
+2. Ensure 1+ GB free disk space
+3. Close background applications
+4. Test on both internal and external drives
+
+### Linux
+1. Use dedicated fast storage when possible
+2. Monitor I/O: `iostat -x 1` during test
+3. Disable unnecessary services
+4. Check for thermal throttling
+
+### Windows
+1. Disable antivirus/Windows Defender during benchmarking
+2. Disable Spotlight indexing on test folder
+3. Close disk-intensive applications
+4. Run with administrator privileges
+
+## System Requirements
+
+- **macOS**: 11.0 or later, Apple Silicon or Intel
+- **Linux**: glibc 2.28+, x86_64 or ARM64
+- **Windows**: Windows 10 (Build 1909+) or Windows Server 2019+
+- **Disk**: 500 MB free minimum, 2-5 GB recommended for testing
 
 ## License
 
-This program is distributed under the terms of the GNU General Public License
-as published by the Free Software Foundation; either version 2 of the License,
-or (at your option) any later version. See the included file [COPYING](COPYING).
+GNU General Public License v2 or later. See COPYING file.
+
+## Support
+
+- **Documentation**: See `docs/` folder for detailed platform guides
+- **Issues**: Report on GitHub
+- **Questions**: Check documentation files
+
+---
+
+**vframetest 3025.10.2** - Built with native platform optimizations
