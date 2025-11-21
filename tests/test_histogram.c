@@ -143,7 +143,7 @@ int test_histogram_collect_cnts(void)
 	return 0;
 }
 
-int test_histogram_cnts_max()
+int test_histogram_cnts_max(void)
 {
 	test_result_t res = {
 		.frames_written = 100,
@@ -164,7 +164,7 @@ int test_histogram_cnts_max()
 	return 0;
 }
 
-int test_histogram_print()
+int test_histogram_print(void)
 {
 	test_completion_t compl = {
 		.start = 1,
