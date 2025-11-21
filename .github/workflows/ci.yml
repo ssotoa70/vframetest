@@ -65,7 +65,7 @@ jobs:
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: benchmark-data
+          name: benchmark-data-macos
           path: dashboard/data/builds.json
 
   build-linux:
@@ -106,7 +106,7 @@ jobs:
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: benchmark-data
+          name: benchmark-data-linux
           path: dashboard/data/builds.json
 
   build-windows:
@@ -160,7 +160,7 @@ jobs:
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: benchmark-data
+          name: benchmark-data-windows-${{ matrix.arch }}
           path: dashboard/data/builds.json
 
   release:
