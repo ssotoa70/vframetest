@@ -40,7 +40,17 @@ mkdir test-data
 
 ## Installation
 
-### macOS
+### macOS (Homebrew)
+```bash
+# Install via Homebrew tap
+brew tap ssotoa70/vframetest https://github.com/ssotoa70/vframetest
+brew install vframetest
+
+# Verify installation
+vframetest --version
+```
+
+### macOS (Manual)
 ```bash
 # Pre-built binary
 curl -L -O https://github.com/ssotoa70/vframetest/releases/download/v3025.10.2/vframetest-macos-universal
