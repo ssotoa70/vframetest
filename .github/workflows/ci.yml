@@ -21,23 +21,25 @@ jobs:
 
       - name: Build Universal Binary
         run: |
+          mkdir -p dist
+
           # Build arm64
           make clean
           CFLAGS="-arch arm64 -std=c99 -O2 -Wall -Werror -Wpedantic -pedantic-errors -DMAJOR=25 -DMINOR=11 -DPATCH=21" \
           LDFLAGS="-arch arm64 -pthread" make
-          mv build/vframetest build/vframetest-arm64
+          cp build/vframetest dist/vframetest-arm64
 
           # Build x86_64
           make clean
           CFLAGS="-arch x86_64 -std=c99 -O2 -Wall -Werror -Wpedantic -pedantic-errors -DMAJOR=25 -DMINOR=11 -DPATCH=21" \
           LDFLAGS="-arch x86_64 -pthread" make
-          mv build/vframetest build/vframetest-x86_64
+          cp build/vframetest dist/vframetest-x86_64
 
           # Create universal binary
-          lipo -create -output build/vframetest-macos-universal build/vframetest-arm64 build/vframetest-x86_64
+          lipo -create -output dist/vframetest-macos-universal dist/vframetest-arm64 dist/vframetest-x86_64
 
           # Verify
-          file build/vframetest-macos-universal
+          file dist/vframetest-macos-universal
 
       - name: Run tests
         run: make test
@@ -47,9 +49,9 @@ jobs:
         with:
           name: vframetest-macos
           path: |
-            build/vframetest-macos-universal
-            build/vframetest-arm64
-            build/vframetest-x86_64
+            dist/vframetest-macos-universal
+            dist/vframetest-arm64
+            dist/vframetest-x86_64
 
   build-linux:
     runs-on: ubuntu-latest
