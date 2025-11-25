@@ -47,10 +47,16 @@ jobs:
 
       - name: Collect benchmark data
         if: always()
+        continue-on-error: true
         run: |
           chmod +x scripts/collect-benchmarks.sh
           VERSION=$(grep '^MAJOR=' Makefile | cut -d= -f2).$(grep '^MINOR=' Makefile | cut -d= -f2).$(grep '^PATCH=' Makefile | cut -d= -f2)
+          mkdir -p dashboard/data
           ./scripts/collect-benchmarks.sh "v${VERSION}" "macOS" "${{ env.BUILD_STATUS }}" "${{ env.BUILD_DURATION }}"
+          # Create platform-specific benchmark file to avoid conflicts
+          if [ -f dashboard/data/builds.json ]; then
+            cp dashboard/data/builds.json dashboard/data/builds-macos.json
+          fi
 
       - name: Upload macOS artifacts
         uses: actions/upload-artifact@v4
@@ -64,9 +70,10 @@ jobs:
       - name: Upload benchmark data
         uses: actions/upload-artifact@v4
         if: always()
+        continue-on-error: true
         with:
           name: benchmark-data-macos
-          path: dashboard/data/builds.json
+          path: dashboard/data/builds-macos.json
 
   build-linux:
     runs-on: ubuntu-latest
@@ -91,10 +98,16 @@ jobs:
 
       - name: Collect benchmark data
         if: always()
+        continue-on-error: true
         run: |
           chmod +x scripts/collect-benchmarks.sh
           VERSION=$(grep '^MAJOR=' Makefile | cut -d= -f2).$(grep '^MINOR=' Makefile | cut -d= -f2).$(grep '^PATCH=' Makefile | cut -d= -f2)
+          mkdir -p dashboard/data
           ./scripts/collect-benchmarks.sh "v${VERSION}" "Linux" "${{ env.BUILD_STATUS }}" "${{ env.BUILD_DURATION }}"
+          # Create platform-specific benchmark file to avoid conflicts
+          if [ -f dashboard/data/builds.json ]; then
+            cp dashboard/data/builds.json dashboard/data/builds-linux.json
+          fi
 
       - name: Upload Linux artifacts
         uses: actions/upload-artifact@v4
@@ -105,9 +118,10 @@ jobs:
       - name: Upload benchmark data
         uses: actions/upload-artifact@v4
         if: always()
+        continue-on-error: true
         with:
           name: benchmark-data-linux
-          path: dashboard/data/builds.json
+          path: dashboard/data/builds-linux.json
 
   build-windows:
     runs-on: windows-latest
@@ -144,11 +158,17 @@ jobs:
 
       - name: Collect benchmark data
         if: always()
+        continue-on-error: true
         shell: msys2 {0}
         run: |
           chmod +x scripts/collect-benchmarks.sh
           VERSION=$(grep '^MAJOR=' Makefile | cut -d= -f2).$(grep '^MINOR=' Makefile | cut -d= -f2).$(grep '^PATCH=' Makefile | cut -d= -f2)
+          mkdir -p dashboard/data
           ./scripts/collect-benchmarks.sh "v${VERSION}" "Windows-${{ matrix.arch }}" "${{ env.BUILD_STATUS }}" "${{ env.BUILD_DURATION }}"
+          # Create architecture-specific benchmark file to avoid conflicts
+          if [ -f dashboard/data/builds.json ]; then
+            cp dashboard/data/builds.json "dashboard/data/builds-windows-${{ matrix.arch }}.json"
+          fi
 
       - name: Upload Windows artifacts
         uses: actions/upload-artifact@v4
@@ -159,9 +179,10 @@ jobs:
       - name: Upload benchmark data
         uses: actions/upload-artifact@v4
         if: always()
+        continue-on-error: true
         with:
           name: benchmark-data-windows-${{ matrix.arch }}
-          path: dashboard/data/builds.json
+          path: dashboard/data/builds-windows-${{ matrix.arch }}.json
 
   release:
     needs: [build-macos, build-linux, build-windows]
@@ -174,24 +195,28 @@ jobs:
 
       - name: Download macOS artifacts
         uses: actions/download-artifact@v4
+        continue-on-error: true
         with:
           name: vframetest-macos
           path: artifacts/macos
 
       - name: Download Linux artifacts
         uses: actions/download-artifact@v4
+        continue-on-error: true
         with:
           name: vframetest-linux
           path: artifacts/linux
 
       - name: Download Windows x86_64 artifacts
         uses: actions/download-artifact@v4
+        continue-on-error: true
         with:
           name: vframetest-windows-x86_64
           path: artifacts/windows-x86_64
 
       - name: Download Windows i686 artifacts
         uses: actions/download-artifact@v4
+        continue-on-error: true
         with:
           name: vframetest-windows-i686
           path: artifacts/windows-i686
