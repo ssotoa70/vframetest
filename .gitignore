@@ -1,0 +1,72 @@
+# Build artifacts
+build/
+*.o
+*.a
+*.so
+*.dylib
+*.dll
+*.exe
+vframetest
+vframetest.exe
+*.gcno
+*.gcda
+*.gcov
+
+# Binaries in releases directory
+releases/**/vframetest*
+!releases/**/*.md
+
+# Test binaries
+tests/test_*
+!tests/*.c
+!tests/*.h
+
+# Dependencies and packages
+*.tar.gz
+*.zip
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+*.sublime-project
+*.sublime-workspace
+
+# macOS specific
+.AppleDouble
+.LSOverride
+.DS_Store
+*.dSYM/
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+
+# Session and temporary files
+vframetest_last_session.md
+*.tmp
+*.temp
+
+# Benchmark data (cache, regenerated per build)
+dashboard/data/*.json
+!dashboard/data/.gitkeep
+
+# Test data
+test-data/
+!test-data/.gitkeep
+
+# Code coverage reports
+coverage/
+*.lcov
+
+# Local configuration (if needed in future)
+.env.local
+config.local.*
+
+# Conditional source files (platform-specific builds)
+platform_macos.c
+platform_linux.c
+platform_windows.c
