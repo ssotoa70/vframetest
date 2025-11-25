@@ -1,330 +1,266 @@
-# vframetest
+# vframetest - Professional Frame-Based Storage I/O Benchmark
 
 [![CI/CD](https://github.com/ssotoa70/vframetest/actions/workflows/ci.yml/badge.svg)](https://github.com/ssotoa70/vframetest/actions/workflows/ci.yml)
+[![GitHub Release](https://img.shields.io/github/v/release/ssotoa70/vframetest)](https://github.com/ssotoa70/vframetest/releases)
+[![License](https://img.shields.io/badge/license-GPL%202.0-blue)](COPYING)
 
-Professional media frame I/O benchmark and testing tool for cross-platform storage performance evaluation.
+**Enterprise-grade storage performance validation tool** designed to accurately measure I/O performance for video workloads, media production, and data center infrastructure.
 
-**vframetest** is a high-performance benchmarking utility designed to accurately measure disk I/O performance when writing and reading media frames. Perfect for validating storage subsystems, video workflows, and data center configurations.
-
-## Key Features
-
-- 🎯 **Accurate I/O Benchmarking** - Native direct I/O on all platforms
-- 🖥️ **Cross-Platform** - macOS, Linux, and Windows with native optimizations
-- 📊 **Flexible Testing** - Multiple video profiles, multi-threaded testing
-- 📈 **Rich Output** - CSV export, histograms, detailed timing
-- ⚡ **High Performance** - Configurable parallelism and threading
-- 📦 **Easy to Use** - Pre-built binaries and simple build process
-
-## Quick Start
-
-### macOS
-```bash
-curl -L -O https://github.com/ssotoa70/vframetest/releases/download/v25.11.21/vframetest-25.11.21-macos-universal
-chmod +x vframetest-25.11.21-macos-universal
-mkdir test-data
-./vframetest-25.11.21-macos-universal -w FULLHD-24bit -n 100 -t 4 test-data
-```
-
-### Linux
-```bash
-wget https://github.com/ssotoa70/vframetest/releases/download/v25.11.21/vframetest-25.11.21-linux-x86_64
-chmod +x vframetest-25.11.21-linux-x86_64
-mkdir test-data
-./vframetest-25.11.21-linux-x86_64 -w FULLHD-24bit -n 100 -t 4 test-data
-```
-
-### Windows
-```powershell
-Invoke-WebRequest -Uri "https://github.com/ssotoa70/vframetest/releases/download/v25.11.21/vframetest-25.11.21-windows-x86_64.exe" -OutFile "vframetest.exe"
-mkdir test-data
-.\vframetest.exe -w FULLHD-24bit -n 100 -t 4 test-data
-```
-
-## Installation
-
-### macOS (Homebrew)
-```bash
-# Install via Homebrew tap
-brew tap ssotoa70/vframetest https://github.com/ssotoa70/vframetest
-brew install vframetest
-
-# Verify installation
-vframetest --version
-```
-
-### macOS (Manual)
-```bash
-# Pre-built binary
-curl -L -O https://github.com/ssotoa70/vframetest/releases/download/v25.11.21/vframetest-25.11.21-macos-universal
-chmod +x vframetest-25.11.21-macos-universal
-sudo mv vframetest-25.11.21-macos-universal /usr/local/bin/vframetest
-
-# Build from source
-git clone https://github.com/ssotoa70/vframetest.git
-cd vframetest
-make clean && make
-```
-
-### Linux
-```bash
-# Pre-built binary
-wget https://github.com/ssotoa70/vframetest/releases/download/v25.11.21/vframetest-25.11.21-linux-x86_64
-chmod +x vframetest-25.11.21-linux-x86_64
-sudo mv vframetest-25.11.21-linux-x86_64 /usr/local/bin/vframetest
-
-# Build from source (Ubuntu/Debian)
-sudo apt-get install build-essential git
-git clone https://github.com/ssotoa70/vframetest.git
-cd vframetest
-make clean && make
-
-# Build from source (RHEL/CentOS)
-sudo yum groupinstall "Development Tools"
-sudo yum install git
-git clone https://github.com/ssotoa70/vframetest.git
-cd vframetest
-make clean && make
-```
-
-### Windows
-```powershell
-# Pre-built binary
-$url = "https://github.com/ssotoa70/vframetest/releases/download/v25.11.21/vframetest-25.11.21-windows-x86_64.exe"
-$dest = "C:\Program Files\vframetest\vframetest.exe"
-New-Item -ItemType Directory -Force -Path "C:\Program Files\vframetest"
-Invoke-WebRequest -Uri $url -OutFile $dest
-Unblock-File -Path $dest
-
-# Build from source (WSL2)
-wsl --install -d Ubuntu
-wsl -d Ubuntu -- bash -c "sudo apt-get update && sudo apt-get install -y build-essential git && git clone https://github.com/ssotoa70/vframetest.git && cd vframetest && make"
-```
-
-## Usage
-
-```bash
-# Show help
-vframetest --help
-
-# List profiles
-vframetest --list-profiles
-
-# Simple write test
-mkdir test-data
-vframetest -w FULLHD-24bit -n 100 test-data
-
-# Multi-threaded write
-vframetest -w 4K-24bit -n 500 -t 4 test-data
-
-# CSV export
-vframetest -w FULLHD-24bit -n 200 -t 2 -c test-data > results.csv
-
-# Read test
-vframetest -r -n 200 test-data
-
-# Random access
-vframetest -r -n 100 --random test-data
-
-# Performance histogram
-vframetest -w FULLHD-24bit -n 500 -t 4 --histogram test-data
-```
-
-## Frame Profiles
-
-### Predefined Profiles
-
-Supported resolutions and bit depths:
-
-**HD (1280x720)**
-```bash
-vframetest -w HD-16bit -n 100 test-data   # 2 bytes per pixel
-vframetest -w HD-24bit -n 100 test-data   # 3 bytes per pixel
-vframetest -w HD-32bit -n 100 test-data   # 4 bytes per pixel
-```
-
-**4K (3840x2160)**
-```bash
-vframetest -w 4K-16bit -n 100 test-data   # 2 bytes per pixel
-vframetest -w 4K-24bit -n 100 test-data   # 3 bytes per pixel
-vframetest -w 4K-32bit -n 100 test-data   # 4 bytes per pixel
-```
-
-**8K (7680x4320)**
-```bash
-vframetest -w 8K-16bit -n 100 test-data   # 2 bytes per pixel
-vframetest -w 8K-24bit -n 100 test-data   # 3 bytes per pixel
-vframetest -w 8K-32bit -n 100 test-data   # 4 bytes per pixel
-```
-
-### Custom Resolutions
-
-Define your own resolution with format: `WIDTHxHEIGHTxBITS`
-
-```bash
-# 2K UHD (2560x1440, 24-bit)
-vframetest -w 2560x1440x24 -n 100 test-data
-
-# 1024x768 with 16-bit color
-vframetest -w 1024x768x16 -n 100 test-data
-
-# Custom 5K resolution (5120x2880, 32-bit)
-vframetest -w 5120x2880x32 -n 100 test-data
-
-# Custom resolution with JSON export
-vframetest --json -w 3200x1800x24 -n 100 test-data > custom.json
-
-# Multi-threaded custom resolution test
-vframetest -w 2560x1440x24 -n 500 -t 4 test-data
-```
-
-**Bit depth options:**
-- `16` = 2 bytes per pixel (RGB 5:6:5)
-- `24` = 3 bytes per pixel (RGB 8:8:8)
-- `32` = 4 bytes per pixel (RGBA 8:8:8:8)
-
-## Machine-Readable Output (JSON & CSV)
-
-Export results for automation and analysis:
-
-```bash
-# JSON format (pretty-printed, structured data)
-vframetest --json -w FULLHD-24bit -n 100 test-data > results.json
-
-# CSV format (comma-separated, importable to spreadsheets)
-vframetest --csv -w FULLHD-24bit -n 100 test-data > results.csv
-
-# CSV with timing breakdown
-vframetest --csv --times -w FULLHD-24bit -n 100 test-data > results_detailed.csv
-
-# Skip CSV header for appending multiple runs
-vframetest --csv --no-csv-header -w FULLHD-24bit -n 100 test-data >> results.csv
-```
-
-### JSON Output Example
-```json
-{
-  "results": [
-    {
-      "case": "write",
-      "profile": "FULLHD-24bit",
-      "threads": 1,
-      "frames": 100,
-      "bytes": 628736000,
-      "time_ns": 1234567890,
-      "fps": 81.015625,
-      "bps": 509664514.285714,
-      "mibps": 486.023430,
-      "completion": {
-        "min_ms": 5.908000,
-        "avg_ms": 12.345600,
-        "max_ms": 25.641000
-      }
-    }
-  ]
-}
-```
-
-### CSV Output Example
-```csv
-case,profile,threads,frames,bytes,time,fps,bps,mibps,fmin,favg,fmax
-"write","FULLHD-24bit",1,100,628736000,1234567890,81.015625,509664514.285714,486.023430,5908000,12345600.000000,25641000
-```
-
-## Platform-Specific Features
-
-- **macOS**: F_NOCACHE for native direct I/O, F_FULLFSYNC for data integrity, Universal Binary support
-- **Linux**: O_DIRECT for kernel-bypass I/O, full POSIX support, multiple architecture support
-- **Windows**: FILE_FLAG_NO_BUFFERING for direct access, FILE_FLAG_WRITE_THROUGH for data durability
-
-## Documentation
-
-- `README.md` - This file
-- `docs/MACOS.md` - macOS installation and usage guide
-- `docs/LINUX.md` - Linux installation and usage guide
-- `docs/WINDOWS.md` - Windows installation and usage guide
-- `BUILD.md` - Building from source for all platforms
-
-## CI/CD Pipeline
-
-This project uses GitHub Actions for continuous integration:
-
-- **Build**: Compiles on macOS (universal binary), Linux (x86_64), and Windows (x86_64 + i686)
-- **Test**: Runs unit tests on Linux and macOS
-- **Release**: Automatically creates releases with binaries for all platforms when tags are pushed
-- **Benchmarking**: Automatically collects build performance metrics for all platforms
-
-Releases are created automatically when you push a version tag:
-```bash
-git tag -a v25.11.22 -m "Release v25.11.22"
-git push origin v25.11.22
-```
-
-## Benchmarking Dashboard
-
-Monitor build performance and metrics with the automated benchmarking dashboard:
-
-### Features
-- 📊 Real-time build performance visualization
-- 📈 Success rates and duration trends
-- 🎯 Platform comparison (macOS vs Linux)
-- 📱 Responsive design for mobile and desktop
-
-### Viewing the Dashboard
-```bash
-# Open locally
-open dashboard/index.html
-
-# Or use HTTP server
-python3 -m http.server 8000
-# Navigate to http://localhost:8000/dashboard/
-```
-
-### Dashboard Data
-Build metrics are automatically collected in `dashboard/data/builds.json`:
-- Build duration per platform
-- Success/failure status
-- Version and commit information
-- Timestamps for historical analysis
-
-For detailed dashboard documentation, see [dashboard/README.md](dashboard/README.md)
-
-## Performance Tips
-
-### macOS
-1. Use the universal binary for compatibility
-2. Ensure 1+ GB free disk space
-3. Close background applications
-4. Test on both internal and external drives
-
-### Linux
-1. Use dedicated fast storage when possible
-2. Monitor I/O: `iostat -x 1` during test
-3. Disable unnecessary services
-4. Check for thermal throttling
-
-### Windows
-1. Disable antivirus/Windows Defender during benchmarking
-2. Disable Spotlight indexing on test folder
-3. Close disk-intensive applications
-4. Run with administrator privileges
-
-## System Requirements
-
-- **macOS**: 11.0 or later, Apple Silicon or Intel
-- **Linux**: glibc 2.28+, x86_64 or ARM64
-- **Windows**: Windows 10 (Build 1909+) or Windows Server 2019+
-- **Disk**: 500 MB free minimum, 2-5 GB recommended for testing
-
-## License
-
-GNU General Public License v2 or later. See COPYING file.
-
-## Support
-
-- **Documentation**: See `docs/` folder for detailed platform guides
-- **Issues**: Report on GitHub
-- **Questions**: Check documentation files
+Evolved from the original Tuxera/SGI implementation into a modern, multi-platform solution with comprehensive error tracking, filesystem detection, and professional CI/CD infrastructure.
 
 ---
 
-**vframetest 25.11.21** - Built with native platform optimizations
+## 🎯 Why vframetest?
+
+- **Video-Centric Benchmarking**: Tests actual video frame I/O patterns, not generic block I/O
+- **Cross-Platform**: Single tool for macOS, Linux, and Windows
+- **Production-Ready**: Error tracking, filesystem detection, comprehensive diagnostics
+- **Easy to Use**: Pre-built binaries, Homebrew installation, simple CLI
+- **Well-Documented**: 2000+ lines of comprehensive documentation
+- **Community-Focused**: Open governance, clear contribution path, professional standards
+
+---
+
+## 🚀 Quick Start
+
+### Installation
+
+**macOS (Homebrew)**
+```bash
+brew tap ssotoa70/vframetest https://github.com/ssotoa70/vframetest
+brew install vframetest
+vframetest --version
+```
+
+**Linux & Windows** - [Download pre-built binaries](https://github.com/ssotoa70/vframetest/releases)
+
+### Basic Test
+```bash
+# Create test directory
+mkdir -p test-data
+
+# Run 100 FULLHD frames on 4 threads
+vframetest -w FULLHD-24bit -t 4 -n 100 test-data
+
+# Expected output:
+# Frames failed: 0
+# Frames succeeded: 100
+# Success rate: 100.00%
+# Filesystem: LOCAL
+# [Performance metrics...]
+```
+
+---
+
+## 📊 Key Features
+
+### Core Benchmarking
+- ✅ **Frame-Based Testing** - Accurate video workload simulation
+- ✅ **Multi-Threading** - Configurable parallel testing (1-16+ threads)
+- ✅ **Multiple Profiles** - SD, HD, 4K, 8K + custom resolutions
+- ✅ **Rich Metrics** - FPS, throughput (MiB/s), completion times
+
+### Phase 1: Error Tracking & Diagnostics
+- ✅ **Comprehensive Error Capture** - errno tracking, frame-level detail
+- ✅ **Success Rate Metrics** - Per-frame success/failure counting
+- ✅ **Filesystem Detection** - LOCAL, SMB, NFS, OTHER types
+- ✅ **Remote FS Warnings** - Alerts for network storage limitations
+- ✅ **Direct I/O Checking** - Availability detection per platform
+
+### Professional Infrastructure
+- ✅ **Multi-Platform** - macOS (arm64/x86_64), Linux, Windows (x86_64/i686)
+- ✅ **CI/CD Automation** - GitHub Actions with multi-platform builds
+- ✅ **Package Management** - Homebrew on macOS, pre-built binaries elsewhere
+- ✅ **Output Formats** - Text, CSV, JSON, histograms
+- ✅ **Extensive Documentation** - 2000+ lines of guides and references
+
+---
+
+## 📈 Supported Configurations
+
+| Aspect | Details |
+|--------|---------|
+| **Platforms** | macOS 10.13+, Linux (glibc), Windows 10+ |
+| **Architectures** | arm64, x86_64, i686, universal (macOS) |
+| **Frame Sizes** | SD (720×480), HD (1280×720), FULLHD (1920×1080), 4K, 8K, custom |
+| **Threading** | 1 to 16+ concurrent threads |
+| **Filesystems** | LOCAL, SMB/CIFS, NFS, others (with detection) |
+| **Output Formats** | Text, CSV, JSON, histograms, per-frame timing |
+
+---
+
+## 📚 Documentation
+
+**Start Here**:
+- [Quick Start](#quick-start) - Get up and running in 2 minutes
+- [Installation Guide](docs/INSTALLATION.md) - All installation methods
+- [Usage Guide](docs/USAGE.md) - Complete feature documentation
+
+**Learn More**:
+- [Architecture & Design](docs/ARCHITECTURE.md) - Technical deep dive
+- [Project Evolution](docs/PROJECT_EVOLUTION.md) - History from original to modern
+- [Feature Guide](docs/FEATURES_GUIDE.md) - Complete feature reference (600+ lines)
+- [FAQ](docs/FAQ.md) - Common questions and troubleshooting
+
+**Project Info**:
+- [Contributing](docs/CONTRIBUTING.md) - How to contribute
+- [Code of Conduct](docs/CODE_OF_CONDUCT.md) - Community guidelines
+- [Governance](docs/GOVERNANCE.md) - Decision-making framework
+- [Roadmap](docs/ROADMAP.md) - Future features and vision
+- [Security](docs/SECURITY.md) - Security considerations
+
+**Reference**:
+- [Repository Structure](docs/REPOSITORY_STRUCTURE.md) - File organization
+- [Changelog](docs/CHANGELOG.md) - Version history
+- [Phase 1 Completion](docs/PHASE_1_COMPLETION_REPORT.md) - Technical report
+
+---
+
+## 💡 Common Use Cases
+
+### Storage Validation
+```bash
+# Comprehensive test: 1000 FULLHD frames, 4 threads, all metrics
+vframetest -w FULLHD-24bit -t 4 -n 1000 /mnt/storage
+```
+
+### Performance Regression Detection
+```bash
+# Save baseline
+vframetest -c -w FULLHD-24bit -t 2 -n 500 /mnt/storage > baseline.csv
+
+# Compare against current (use diff or graphical tools)
+vframetest -c -w FULLHD-24bit -t 2 -n 500 /mnt/storage > current.csv
+```
+
+### Network Storage Analysis
+```bash
+# Test SMB share (vframetest auto-detects and warns about remote FS)
+vframetest -w FULLHD-24bit -t 2 -n 100 //nas-server/share
+# Output will include:
+# WARNING: Test path is on a remote filesystem
+# Direct I/O may not be available. Results may not be accurate.
+```
+
+### JSON Export for Automation
+```bash
+# Export results for dashboards and analysis
+vframetest -j -w FULLHD-24bit -t 4 -n 100 /mnt/storage > results.json
+
+# Parse and process with Python/Node.js for custom analytics
+```
+
+---
+
+## 🔧 Building from Source
+
+### Requirements
+- C99 compiler (gcc, clang)
+- POSIX threads (pthread)
+- Make (GNU make preferred)
+- Git (for version tracking)
+
+### Quick Build
+```bash
+git clone https://github.com/ssotoa70/vframetest.git
+cd vframetest
+make clean && make -j4
+./build/vframetest --version
+```
+
+### Platform-Specific
+```bash
+# macOS
+make clean && make -j4
+
+# Linux
+make clean && make -j4
+
+# Windows (requires MinGW)
+make win64        # 64-bit
+make win          # 32-bit
+```
+
+For detailed build instructions, see [BUILD](docs/BUILD.md).
+
+---
+
+## 📊 Example Output
+
+```
+Profile: FULLHD-24bit
+Results write:
+ frames: 100
+ bytes : 6254368000
+ time  : 2900600000 ns
+ fps   : 344.5
+ B/s   : 2155000000
+ MiB/s : 2055.34
+Completion times:
+ min   : 2.1 ms
+ avg   : 5.8 ms
+ max   : 12.3 ms
+Frames failed: 0
+Frames succeeded: 100
+Success rate: 100.00%
+Filesystem: LOCAL
+```
+
+---
+
+## 🤝 Contributing
+
+We welcome contributions! See [CONTRIBUTING.md](docs/CONTRIBUTING.md) for:
+- Development setup
+- Code standards
+- Pull request process
+- Reporting issues
+- Suggesting features
+
+**Community Standards**: All contributors must follow our [Code of Conduct](docs/CODE_OF_CONDUCT.md)
+
+---
+
+## 📈 Project Status
+
+| Phase | Status | Features |
+|-------|--------|----------|
+| **Phase 1** | ✅ Complete | Error tracking, filesystem detection, success metrics |
+| **Phase 2** | 🚀 In Progress | Graceful I/O fallback, error export, detailed reports |
+| **Phase 3** | 📋 Planned | NFS/SMB optimization detection, performance analysis |
+| **Future** | 🔮 Vision | Web dashboard, cloud integration, ML anomaly detection |
+
+Current Version: **25.11.23** (Phase 1 Complete)
+Latest Release: [v25.11.23](https://github.com/ssotoa70/vframetest/releases/tag/v25.11.23)
+
+---
+
+## 📞 Support & Community
+
+- **Issues & Bugs**: [GitHub Issues](https://github.com/ssotoa70/vframetest/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/ssotoa70/vframetest/discussions)
+- **Documentation**: [Complete Guides](docs/)
+- **Wiki**: [Community Wiki](/wiki)
+
+---
+
+## 📜 License
+
+GNU General Public License v2 - See [COPYING](COPYING) for details.
+
+**Origin**: Extended from original Tuxera Inc. / SGI implementation
+**Modern Fork**: Enhanced with multi-platform support, comprehensive error tracking, and professional infrastructure
+
+---
+
+## 🙏 Acknowledgments
+
+- **Original**: Tuxera Inc. / SGI for foundational frame-based testing approach
+- **Contributors**: Community members who have contributed fixes and features
+- **Users**: Thank you for using and improving vframetest
+
+---
+
+**Repository**: [ssotoa70/vframetest](https://github.com/ssotoa70/vframetest)
+**Latest Release**: [v25.11.23](https://github.com/ssotoa70/vframetest/releases/tag/v25.11.23)
+**Documentation**: [Complete Guides](docs/) | [Wiki](/wiki) | [FAQ](docs/FAQ.md)

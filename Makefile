@@ -3,12 +3,14 @@ MINOR=11
 PATCH=23
 CFLAGS+=-std=c99 -O2 -Wall -Werror -Wpedantic -pedantic-errors -DMAJOR=$(MAJOR) -DMINOR=$(MINOR) -DPATCH=$(PATCH)
 LDFLAGS+=-pthread
-HEADERS := $(wildcard *.h)
+SRC_DIR=src
+HEADERS := $(wildcard $(SRC_DIR)/*.h)
 BUILD_FOLDER=$(PWD)/build
 SOURCES=profile.c frame.c tester.c histogram.c report.c platform.c timing.c
+SRC_FILES=$(addprefix $(SRC_DIR)/,$(SOURCES))
 TEST_SOURCES=$(wildcard tests/test_*.c)
 OBJECTS=$(addprefix $(BUILD_FOLDER)/,$(SOURCES:.c=.o))
-ALL_FILES=frametest.c $(SOURCES) $(HEADERS) $(TEST_SOURCES)
+ALL_FILES=$(SRC_DIR)/frametest.c $(SRC_FILES) $(HEADERS) $(TEST_SOURCES)
 
 all: $(BUILD_FOLDER) $(BUILD_FOLDER)/vframetest
 
@@ -21,7 +23,7 @@ $(BUILD_FOLDER)/vframetest: $(BUILD_FOLDER)/frametest.o $(BUILD_FOLDER)/libvfram
 $(BUILD_FOLDER)/libvframetest.a: $(OBJECTS)
 	$(AR) $(ARFLAGS) $@ $^
 
-$(BUILD_FOLDER)/%.o: %.c $(HEADERS)
+$(BUILD_FOLDER)/%.o: $(SRC_DIR)/%.c $(HEADERS)
 	$(CC) -c $(CFLAGS) -o $@ $<
 
 $(BUILD_FOLDER):
@@ -34,10 +36,10 @@ dist:
 	git archive --prefix="vframetest-$(MAJOR).$(MINOR).$(PATCH)/" HEAD | gzip -9 > "vframetest-$(MAJOR).$(MINOR).$(PATCH).tar.gz"
 
 win:
-	BUILD_FOLDER="$(BUILD_FOLDER)/win" ./build_win.sh "$(MAJOR).$(MINOR).$(PATCH)"
+	BUILD_FOLDER="$(BUILD_FOLDER)/win" ./scripts/build/build_win.sh "$(MAJOR).$(MINOR).$(PATCH)"
 
 win64:
-	BUILD_FOLDER="$(BUILD_FOLDER)/win64" CROSS=x86_64-w64-mingw32- ./build_win.sh "$(MAJOR).$(MINOR).$(PATCH)"
+	BUILD_FOLDER="$(BUILD_FOLDER)/win64" CROSS=x86_64-w64-mingw32- ./scripts/build/build_win.sh "$(MAJOR).$(MINOR).$(PATCH)"
 
 coverage:
 	CFLAGS="-O0 -fprofile-arcs -ftest-coverage" LDFLAGS="-lgcov" make -C tests test BUILD_FOLDER="$(BUILD_FOLDER)/tests-coverage"

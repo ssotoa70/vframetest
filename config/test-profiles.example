@@ -1,0 +1,32 @@
+# Example vframetest test profiles and configurations
+# Note: vframetest doesn't use config files yet, but this shows typical test scenarios
+
+[SD-Profile]
+# NTSC resolution: 720x480
+profile=SD-32bit-cmp
+threads=2
+frames=100
+
+[HD-Profile]
+# HD resolution: 1280x720
+profile=HD-24bit
+threads=4
+frames=500
+
+[FULLHD-Profile]
+# Full HD resolution: 1920x1080 (most common)
+profile=FULLHD-24bit
+threads=4
+frames=1000
+
+[4K-Profile]
+# 4K resolution: 3840x2160 (requires more storage)
+profile=4K-24bit
+threads=8
+frames=500
+
+[Heavy-Load]
+# High concurrency test
+profile=FULLHD-24bit
+threads=16
+frames=2000

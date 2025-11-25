@@ -12,14 +12,16 @@ vframetest.exe
 *.gcda
 *.gcov
 
-# Binaries in releases directory
+# Compiled binaries in releases
 releases/**/vframetest*
 !releases/**/*.md
+!releases/**/.gitkeep
 
 # Test binaries
 tests/test_*
 !tests/*.c
 !tests/*.h
+!tests/Makefile
 
 # Dependencies and packages
 *.tar.gz
@@ -46,15 +48,15 @@ Thumbs.db
 ehthumbs.db
 
 # Session and temporary files
-vframetest_last_session.md
 *.tmp
 *.temp
+*.backup
 
 # Benchmark data (cache, regenerated per build)
 dashboard/data/*.json
 !dashboard/data/.gitkeep
 
-# Test data
+# Test data (user-generated)
 test-data/
 !test-data/.gitkeep
 
@@ -66,7 +68,17 @@ coverage/
 .env.local
 config.local.*
 
-# Conditional source files (platform-specific builds)
+# Platform-specific build artifacts
 platform_macos.c
 platform_linux.c
 platform_windows.c
+
+# Build-specific paths
+/bin/
+/lib/
+
+# CI/CD logs
+.github/workflows/*.log
+
+# Ignore example files (copy to use)
+config/*.example.backup
