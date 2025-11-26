@@ -7,6 +7,11 @@ on:
   pull_request:
     branches: [main]
 
+# Cancel redundant runs on same branch/PR
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build-macos:
     runs-on: macos-latest
@@ -23,19 +28,27 @@ jobs:
           echo "BUILD_DURATION=${DURATION}" >> $GITHUB_ENV
           echo "BUILD_STATUS=success" >> $GITHUB_ENV
 
+      - name: Run tests
+        run: make test
+
       - name: Build Universal Binary
         run: |
           mkdir -p dist
 
+          # Read version from Makefile
+          MAJOR=$(grep '^MAJOR=' Makefile | cut -d= -f2)
+          MINOR=$(grep '^MINOR=' Makefile | cut -d= -f2)
+          PATCH=$(grep '^PATCH=' Makefile | cut -d= -f2)
+
           # Build arm64
           make clean
-          CFLAGS="-arch arm64 -std=c99 -O2 -Wall -Werror -Wpedantic -pedantic-errors -DMAJOR=25 -DMINOR=11 -DPATCH=23" \
+          CFLAGS="-arch arm64 -std=c99 -O2 -Wall -Werror -Wpedantic -pedantic-errors -DMAJOR=${MAJOR} -DMINOR=${MINOR} -DPATCH=${PATCH}" \
           LDFLAGS="-arch arm64 -pthread" make
           cp build/vframetest dist/vframetest-arm64
 
           # Build x86_64
           make clean
-          CFLAGS="-arch x86_64 -std=c99 -O2 -Wall -Werror -Wpedantic -pedantic-errors -DMAJOR=25 -DMINOR=11 -DPATCH=23" \
+          CFLAGS="-arch x86_64 -std=c99 -O2 -Wall -Werror -Wpedantic -pedantic-errors -DMAJOR=${MAJOR} -DMINOR=${MINOR} -DPATCH=${PATCH}" \
           LDFLAGS="-arch x86_64 -pthread" make
           cp build/vframetest dist/vframetest-x86_64
 
@@ -81,7 +94,11 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Install dependencies
-        run: sudo apt-get update && sudo apt-get install -y build-essential
+        run: sudo apt-get update && sudo apt-get install -y build-essential cppcheck
+
+      - name: Static Analysis
+        run: |
+          cppcheck --enable=warning,style,performance,portability --error-exitcode=1 --quiet src/
 
       - name: Build for Linux
         run: |
@@ -155,6 +172,10 @@ jobs:
           DURATION=$((SECONDS - START_TIME))
           echo "BUILD_DURATION=${DURATION}" >> $GITHUB_ENV
           echo "BUILD_STATUS=success" >> $GITHUB_ENV
+
+      - name: Run tests
+        shell: msys2 {0}
+        run: make test
 
       - name: Collect benchmark data
         if: always()
