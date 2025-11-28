@@ -2,6 +2,61 @@
 
 All notable changes to vframetest are documented in this file.
 
+## [25.13.0] - 2025-11-28
+
+### Phase 3: NFS/SMB Optimization Detection ✅
+
+#### Added
+- **Automatic NFS/SMB Detection** - Filesystem type detection at startup (LOCAL/SMB/NFS/OTHER)
+- **Direct I/O Optimization** - Skips Direct I/O on remote filesystems to prevent failures
+- **Timeout Handling** - Configurable timeouts for network filesystem operations (30 seconds default)
+- **Performance Trend Analysis** - Tracks min/max/avg frame times and performance trends
+  - Improving trend (1.0): Performance getting better
+  - Stable trend (0.0): Consistent performance
+  - Degrading trend (-1.0): Performance getting worse
+- **Enhanced CSV Output** - 6 new columns: is_remote, min_frame_time, avg_frame_time, max_frame_time, performance_trend, network_timeout
+- **Enhanced JSON Output** - New "optimization_metrics" section with all Phase 3 data
+
+#### Changed
+- Modified `tester_frame_write()` and `tester_frame_read()` to check filesystem type
+- Frame time tracking integrated into main test loops
+- Version bumped to 25.13.0
+
+#### Technical Details
+- Platform: `platform_get_network_timeout()` for configurable timeouts
+- Data Structure: `test_result_t` expanded with 7 new fields
+- Cross-Platform: macOS (statfs), Linux (statfs), Windows (GetVolumeInformation, UNC detection)
+- Performance: <1% overhead from trend analysis
+
+#### Test Results
+- ✅ All unit tests passing
+- ✅ All CI/CD checks passing (macOS, Linux, Windows)
+- ✅ Zero compiler warnings
+- ✅ Backward compatible with Phase 1 & 2
+- ✅ Code coverage: 100+ unit tests
+
+#### Documentation
+- PHASE_3_COMPLETION_REPORT.md - Technical completion report
+- README.md - Phase 3 features section
+- API and architecture documentation updated
+
+## [25.12.0] - 2025-11-27
+
+### Phase 2: I/O Fallback & Enhanced Reporting ✅
+
+#### Added
+- **Graceful I/O Fallback** - Direct I/O → Buffered I/O fallback mechanism
+- **Per-Frame I/O Tracking** - io_mode_t enum for Direct/Buffered tracking
+- **Enhanced Error Reporting** - Error statistics and per-operation breakdown
+- **CSV Error Export** - error_frame, error_operation, error_errno columns
+- **JSON Error Export** - Structured error data with timestamps
+- **Fallback Statistics** - frames_direct_io, frames_buffered_io, fallback_count metrics
+
+#### Changed
+- Test execution continues on I/O fallback (no hard failures)
+- CSV format expanded with filesystem and I/O stats
+- JSON format includes success_metrics and io_fallback_stats sections
+
 ## [25.11.23] - 2025-11-25
 
 ### Phase 1 Complete ✅

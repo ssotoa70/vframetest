@@ -67,6 +67,20 @@ vframetest -w FULLHD-24bit -t 4 -n 100 test-data
 - ✅ **Remote FS Warnings** - Alerts for network storage limitations
 - ✅ **Direct I/O Checking** - Availability detection per platform
 
+### Phase 2: I/O Fallback & Enhanced Reporting
+- ✅ **Graceful I/O Fallback** - Automatic Direct I/O → Buffered I/O fallback
+- ✅ **Per-Frame I/O Tracking** - Track which frames used Direct vs Buffered I/O
+- ✅ **Enhanced Error Reporting** - Error statistics and per-operation breakdown
+- ✅ **CSV/JSON Error Export** - Detailed error data with timestamps
+- ✅ **Fallback Statistics** - Direct I/O success rate and fallback metrics
+
+### Phase 3: NFS/SMB Optimization Detection
+- ✅ **Automatic NFS/SMB Optimization** - Skip Direct I/O on remote filesystems
+- ✅ **Performance Trend Analysis** - Track improving/stable/degrading performance
+- ✅ **Network Timeout Handling** - Configurable timeouts for network filesystems
+- ✅ **Performance Metrics** - Min/max/avg frame times with trend analysis
+- ✅ **Enhanced Output** - CSV and JSON include optimization metrics
+
 ### Professional Infrastructure
 - ✅ **Multi-Platform** - macOS (arm64/x86_64), Linux, Windows (x86_64/i686)
 - ✅ **CI/CD Automation** - GitHub Actions with multi-platform builds
@@ -113,6 +127,7 @@ vframetest -w FULLHD-24bit -t 4 -n 100 test-data
 - [Repository Structure](docs/REPOSITORY_STRUCTURE.md) - File organization
 - [Changelog](docs/CHANGELOG.md) - Version history
 - [Phase 1 Completion](docs/PHASE_1_COMPLETION_REPORT.md) - Technical report
+- [Phase 3 Completion](docs/PHASE_3_COMPLETION_REPORT.md) - NFS/SMB Optimization report
 
 ---
 
