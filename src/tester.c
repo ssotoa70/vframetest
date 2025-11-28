@@ -69,6 +69,7 @@ static inline size_t tester_frame_write(const platform_t *platform,
 	char name[PATH_MAX + 1];
 	size_t ret;
 	platform_handle_t f;
+	io_mode_t io_mode = IO_MODE_UNKNOWN;
 
 	switch (files) {
 	case TEST_FILES_MULTIPLE:
@@ -83,10 +84,23 @@ static inline size_t tester_frame_write(const platform_t *platform,
 		return 1;
 	}
 
+	/* Phase 2: Try Direct I/O first, fall back to buffered if needed */
 	f = platform->open(name,
 			   PLATFORM_OPEN_CREATE | PLATFORM_OPEN_WRITE |
 				   PLATFORM_OPEN_DIRECT,
 			   0666);
+
+	if (f > 0) {
+		io_mode = IO_MODE_DIRECT;
+	} else {
+		/* Fallback: Retry without Direct I/O flag */
+		f = platform->open(name,
+				   PLATFORM_OPEN_CREATE | PLATFORM_OPEN_WRITE,
+				   0666);
+		if (f > 0) {
+			io_mode = IO_MODE_BUFFERED;
+		}
+	}
 
 	if (f <= 0)
 		return 1;
@@ -94,8 +108,10 @@ static inline size_t tester_frame_write(const platform_t *platform,
 	if (files == TEST_FILES_SINGLE) {
 		long pos =
 			platform->seek(f, num * frame->size, PLATFORM_SEEK_SET);
-		if (pos < 0)
+		if (pos < 0) {
+			platform->close(f);
 			return 1;
+		}
 	}
 
 	comp->open = timing_start();
@@ -105,6 +121,9 @@ static inline size_t tester_frame_write(const platform_t *platform,
 
 	platform->close(f);
 	comp->close = timing_start();
+
+	/* Track which I/O mode was used */
+	comp->io_mode = io_mode;
 
 	/* Faking the output! */
 	if (!ret && !frame->size)
@@ -120,6 +139,7 @@ static inline size_t tester_frame_read(const platform_t *platform,
 	char name[PATH_MAX + 1];
 	size_t ret;
 	platform_handle_t f;
+	io_mode_t io_mode = IO_MODE_UNKNOWN;
 
 	switch (files) {
 	case TEST_FILES_MULTIPLE:
@@ -134,16 +154,29 @@ static inline size_t tester_frame_read(const platform_t *platform,
 		return 1;
 	}
 
+	/* Phase 2: Try Direct I/O first, fall back to buffered if needed */
 	f = platform->open(name, PLATFORM_OPEN_READ | PLATFORM_OPEN_DIRECT,
 			   0666);
+	if (f > 0) {
+		io_mode = IO_MODE_DIRECT;
+	} else {
+		/* Fallback: Retry without Direct I/O flag */
+		f = platform->open(name, PLATFORM_OPEN_READ, 0666);
+		if (f > 0) {
+			io_mode = IO_MODE_BUFFERED;
+		}
+	}
+
 	if (f <= 0)
 		return 0;
 
 	if (files == TEST_FILES_SINGLE) {
 		long pos =
 			platform->seek(f, num * frame->size, PLATFORM_SEEK_SET);
-		if (pos < 0)
+		if (pos < 0) {
+			platform->close(f);
 			return 1;
+		}
 	}
 
 	comp->open = timing_start();
@@ -153,6 +186,9 @@ static inline size_t tester_frame_read(const platform_t *platform,
 
 	platform->close(f);
 	comp->close = timing_start();
+
+	/* Track which I/O mode was used */
+	comp->io_mode = io_mode;
 
 	/* Faking the output! */
 	if (!ret && !frame->size)
@@ -211,6 +247,12 @@ test_result_t tester_run_write(const platform_t *platform, const char *path,
 	res.errors = NULL;
 	res.direct_io_available = 1;
 
+	/* Phase 2: Initialize I/O fallback tracking */
+	res.frames_direct_io = 0;
+	res.frames_buffered_io = 0;
+	res.fallback_count = 0;
+	res.direct_io_success_rate = 0.0;
+
 	budget = fps ? (SEC_IN_NS / fps) : 0;
 	end_frame = start_frame + frames;
 
@@ -246,12 +288,21 @@ test_result_t tester_run_write(const platform_t *platform, const char *path,
 			/* Phase 1: Record error and continue tracking */
 			res.frames_failed++;
 			record_error(&res, errno, "write", frame_idx, 0);
-			break;
+			/* Phase 2: Continue instead of break to allow test to continue */
+			continue;
 		}
 		res.completion[i - start_frame].frame = timing_start();
 		++res.frames_written;
 		res.frames_succeeded++;
 		res.bytes_written += frame->size;
+
+		/* Phase 2: Track which I/O mode was used */
+		if (res.completion[i - start_frame].io_mode == IO_MODE_DIRECT) {
+			res.frames_direct_io++;
+		} else if (res.completion[i - start_frame].io_mode == IO_MODE_BUFFERED) {
+			res.frames_buffered_io++;
+			res.fallback_count++;
+		}
 		/* If fps limit is enabled loop until frame budget is gone */
 		if (fps && budget) {
 			uint64_t frame_elapsed = timing_elapsed(frame_start);
@@ -267,6 +318,12 @@ test_result_t tester_run_write(const platform_t *platform, const char *path,
 	if (res.frames_succeeded + res.frames_failed > 0) {
 		res.success_rate_percent = (res.frames_succeeded * 100.0) /
 		                            (res.frames_succeeded + res.frames_failed);
+	}
+
+	/* Phase 2: Calculate Direct I/O success rate */
+	if (res.frames_direct_io + res.frames_buffered_io > 0) {
+		res.direct_io_success_rate = (res.frames_direct_io * 100.0) /
+		                              (res.frames_direct_io + res.frames_buffered_io);
 	}
 
 	if (seq)
@@ -295,6 +352,12 @@ test_result_t tester_run_read(const platform_t *platform, const char *path,
 	res.max_errors = 0;
 	res.errors = NULL;
 	res.direct_io_available = 1;
+
+	/* Phase 2: Initialize I/O fallback tracking */
+	res.frames_direct_io = 0;
+	res.frames_buffered_io = 0;
+	res.fallback_count = 0;
+	res.direct_io_success_rate = 0.0;
 
 	budget = fps ? (SEC_IN_NS / fps) : 0;
 	end_frame = start_frame + frames;
@@ -331,12 +394,21 @@ test_result_t tester_run_read(const platform_t *platform, const char *path,
 			/* Phase 1: Record error and continue tracking */
 			res.frames_failed++;
 			record_error(&res, errno, "read", frame_idx, 0);
-			break;
+			/* Phase 2: Continue instead of break to allow test to continue */
+			continue;
 		}
 		res.completion[i - start_frame].frame = timing_start();
 		++res.frames_written;
 		res.frames_succeeded++;
 		res.bytes_written += frame->size;
+
+		/* Phase 2: Track which I/O mode was used */
+		if (res.completion[i - start_frame].io_mode == IO_MODE_DIRECT) {
+			res.frames_direct_io++;
+		} else if (res.completion[i - start_frame].io_mode == IO_MODE_BUFFERED) {
+			res.frames_buffered_io++;
+			res.fallback_count++;
+		}
 		/* If fps limit is enabled loop until frame budget is gone */
 		if (fps && budget) {
 			uint64_t frame_elapsed = timing_elapsed(frame_start);
@@ -352,6 +424,12 @@ test_result_t tester_run_read(const platform_t *platform, const char *path,
 	if (res.frames_succeeded + res.frames_failed > 0) {
 		res.success_rate_percent = (res.frames_succeeded * 100.0) /
 		                            (res.frames_succeeded + res.frames_failed);
+	}
+
+	/* Phase 2: Calculate Direct I/O success rate */
+	if (res.frames_direct_io + res.frames_buffered_io > 0) {
+		res.direct_io_success_rate = (res.frames_direct_io * 100.0) /
+		                              (res.frames_direct_io + res.frames_buffered_io);
 	}
 
 	if (seq)

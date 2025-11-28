@@ -61,12 +61,20 @@ typedef struct opts_t {
 	unsigned int single_file : 1;
 } opts_t;
 
+/* I/O mode enumeration */
+typedef enum io_mode_t {
+	IO_MODE_UNKNOWN = 0,
+	IO_MODE_DIRECT = 1,
+	IO_MODE_BUFFERED = 2,
+} io_mode_t;
+
 typedef struct test_completion_t {
 	uint64_t start;
 	uint64_t open;
 	uint64_t io;
 	uint64_t close;
 	uint64_t frame;
+	io_mode_t io_mode;              /* Which I/O mode was used for this frame */
 } test_completion_t;
 
 /* Filesystem type enumeration */
@@ -104,6 +112,12 @@ typedef struct test_result_t {
 	/* Filesystem info (Phase 1) */
 	int direct_io_available;        /* Was direct I/O actually used? (1=yes, 0=no) */
 	filesystem_type_t filesystem_type; /* Type of filesystem being tested */
+
+	/* I/O fallback tracking (Phase 2) */
+	int frames_direct_io;           /* Frames completed with Direct I/O */
+	int frames_buffered_io;         /* Frames completed with Buffered I/O (fallback) */
+	int fallback_count;             /* Number of times fallback was triggered */
+	float direct_io_success_rate;   /* Percentage of frames that used Direct I/O */
 } test_result_t;
 
 #endif

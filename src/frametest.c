@@ -227,6 +227,18 @@ int run_test_threads(const platform_t *platform, const char *tst,
 				fprintf(stdout, "WARNING: Test path is on a remote filesystem\n");
 				fprintf(stdout, "Direct I/O may not be available. Results may not be accurate.\n");
 			}
+
+			/* Phase 2: Display I/O fallback statistics */
+			if (tres.frames_direct_io > 0 || tres.frames_buffered_io > 0) {
+				fprintf(stdout, "\n--- Phase 2: I/O Mode Statistics ---\n");
+				fprintf(stdout, "Frames with Direct I/O: %d\n", tres.frames_direct_io);
+				fprintf(stdout, "Frames with Buffered I/O (fallback): %d\n", tres.frames_buffered_io);
+				fprintf(stdout, "Direct I/O success rate: %.2f%%\n", tres.direct_io_success_rate);
+				if (tres.fallback_count > 0) {
+					fprintf(stdout, "Fallback events: %d\n", tres.fallback_count);
+				}
+			}
+
 			if (opts->histogram)
 				print_histogram(&tres);
 		}
