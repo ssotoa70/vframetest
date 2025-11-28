@@ -112,6 +112,17 @@ static inline int test_result_aggregate(test_result_t *dst,
 		                             (dst->frames_succeeded + dst->frames_failed);
 	}
 
+	/* Phase 2: Aggregate I/O fallback tracking */
+	dst->frames_direct_io += src->frames_direct_io;
+	dst->frames_buffered_io += src->frames_buffered_io;
+	dst->fallback_count += src->fallback_count;
+
+	/* Recalculate Direct I/O success rate after aggregation */
+	int total_frames = dst->frames_direct_io + dst->frames_buffered_io;
+	if (total_frames > 0) {
+		dst->direct_io_success_rate = (dst->frames_direct_io * 100.0) / total_frames;
+	}
+
 	return 0;
 }
 
