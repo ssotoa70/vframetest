@@ -13,14 +13,13 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  # Global environment variables (platform-specific values set per job)
   RUST_BACKTRACE: 1
   CARGO_INCREMENTAL: 0
 
+# ============================================================================
+# LINT JOB
+# ============================================================================
 jobs:
-  # ============================================================================
-  # LINT JOB - Code quality checks (runs once, any OS)
-  # ============================================================================
   lint:
     name: Code Quality
     runs-on: ubuntu-latest
@@ -68,9 +67,9 @@ jobs:
           retention-days: 7
 
   # ============================================================================
-  # BUILD JOB - Compile for multiple platforms and architectures
+  # BUILD JOB - macOS + Linux (bash-only matrix)
   # ============================================================================
-  build:
+  build-unix:
     name: Build ${{ matrix.os }} (${{ matrix.arch }})
     runs-on: ${{ matrix.runner }}
     needs: lint
@@ -80,12 +79,11 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # macOS builds - arm64 and x86_64 universal binary
+          # macOS builds
           - os: macos
             runner: macos-latest
             arch: universal
             cc: clang
-            cross_prefix: ""
             build_flags: "-arch arm64 -arch x86_64"
             artifact_suffix: macos-universal
 
@@ -93,7 +91,6 @@ jobs:
             runner: macos-latest
             arch: arm64
             cc: clang
-            cross_prefix: ""
             build_flags: "-arch arm64"
             artifact_suffix: macos-arm64
 
@@ -101,16 +98,14 @@ jobs:
             runner: macos-latest
             arch: x86_64
             cc: clang
-            cross_prefix: ""
             build_flags: "-arch x86_64"
             artifact_suffix: macos-x86_64
 
-          # Linux builds - native and variants
+          # Linux builds
           - os: linux
             runner: ubuntu-latest
             arch: x86_64
             cc: gcc
-            cross_prefix: ""
             build_flags: ""
             artifact_suffix: linux-gcc-x86_64
 
@@ -118,29 +113,11 @@ jobs:
             runner: ubuntu-latest
             arch: x86_64
             cc: clang
-            cross_prefix: ""
             build_flags: ""
             artifact_suffix: linux-clang-x86_64
 
-          # Windows builds - x86_64 and i686
-          - os: windows
-            runner: windows-latest
-            arch: x86_64
-            cc: mingw
-            cross_prefix: ""
-            artifact_suffix: windows-x86_64
-
-          - os: windows
-            runner: windows-latest
-            arch: i686
-            cc: mingw
-            cross_prefix: "i686-w64-mingw32-"
-            artifact_suffix: windows-i686
-
     env:
-      # Platform and architecture specific settings
       CC: ${{ matrix.cc }}
-      CROSS_COMPILE: ${{ matrix.cross_prefix }}
 
     steps:
       - uses: actions/checkout@v4
@@ -152,38 +129,13 @@ jobs:
         run: |
           echo "BUILD_DIR=$(pwd)/build-${{ matrix.artifact_suffix }}" >> $GITHUB_ENV
           echo "ARTIFACT_NAME=vframetest-${{ matrix.artifact_suffix }}" >> $GITHUB_ENV
-          echo "DIST_DIR=$(pwd)/dist" >> $GITHUB_ENV
+          echo "DIST_DIR=$(pwd)/dist-${{ matrix.artifact_suffix }}" >> $GITHUB_ENV
 
-          # Read version from Makefile
           MAJOR=$(grep '^MAJOR=' Makefile | cut -d= -f2)
           MINOR=$(grep '^MINOR=' Makefile | cut -d= -f2)
           PATCH=$(grep '^PATCH=' Makefile | cut -d= -f2)
           echo "VERSION=${MAJOR}.${MINOR}.${PATCH}" >> $GITHUB_ENV
-          echo "VERSION_TAG=v${MAJOR}.${MINOR}.${PATCH}" >> $GITHUB_ENV
 
-      # Cache compiler toolchain (optional, platform-specific)
-      - name: Cache build dependencies (macOS)
-        if: runner.os == 'macOS'
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/Library/Caches/Homebrew
-            /Library/Caches/Homebrew
-          key: ${{ runner.os }}-brew-${{ hashFiles('.github/workflows/ci.yml') }}
-          restore-keys: |
-            ${{ runner.os }}-brew-
-
-      - name: Cache build dependencies (Linux)
-        if: runner.os == 'Linux'
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cache/apt
-          key: ${{ runner.os }}-apt-${{ hashFiles('.github/workflows/ci.yml') }}
-          restore-keys: |
-            ${{ runner.os }}-apt-
-
-      # Install platform-specific dependencies
       - name: Install dependencies (macOS)
         if: runner.os == 'macOS'
         run: |
@@ -195,62 +147,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y build-essential gcc clang cppcheck clang-format
 
-      - name: Install dependencies (Windows)
-        if: runner.os == 'Windows'
-        uses: msys2/setup-msys2@v2
-        with:
-          msystem: mingw64
-          update: true
-          install: >-
-            mingw-w64-x86_64-toolchain
-            mingw-w64-i686-toolchain
-            make
-            cppcheck
-
-      # Build step (Windows)
-      - name: Build binary (Windows)
-        if: runner.os == 'Windows'
-        shell: msys2 {0}
-        run: |
-          set -euo pipefail
-
-          echo "=== Build Configuration ==="
-          echo "OS: ${{ matrix.os }}"
-          echo "Architecture: ${{ matrix.arch }}"
-          echo "Compiler: ${{ matrix.cc }}"
-          echo "Build Directory: ${{ env.BUILD_DIR }}"
-          echo "Version: ${{ env.VERSION }}"
-          echo ""
-
-          BUILD_START=$(date +%s)
-
-          mkdir -p "${{ env.BUILD_DIR }}"
-          make clean BUILD_FOLDER="${{ env.BUILD_DIR }}" || true
-
-          CFLAGS="${{ matrix.build_flags }} -DMAJOR=$(echo ${{ env.VERSION }} | cut -d. -f1) -DMINOR=$(echo ${{ env.VERSION }} | cut -d. -f2) -DPATCH=$(echo ${{ env.VERSION }} | cut -d. -f3)"
-
-          if [ -z "${{ matrix.cross_prefix }}" ]; then
-            make BUILD_FOLDER="${{ env.BUILD_DIR }}" CFLAGS="$CFLAGS"
-          else
-            make BUILD_FOLDER="${{ env.BUILD_DIR }}" CROSS=${{ matrix.cross_prefix }} CFLAGS="$CFLAGS"
-          fi
-
-          BUILD_END=$(date +%s)
-          BUILD_DURATION=$((BUILD_END - BUILD_START))
-          echo "BUILD_DURATION=${BUILD_DURATION}" >> $GITHUB_ENV
-
-          BINARY="${{ env.BUILD_DIR }}/vframetest.exe"
-          if [ ! -f "$BINARY" ]; then
-            echo "❌ Build failed: Binary not found at $BINARY"
-            exit 1
-          fi
-
-          echo "✅ Build successful"
-          ls -lh "$BINARY"
-
-      # Build step (*nix)
       - name: Build binary (*nix)
-        if: runner.os != 'Windows'
         shell: bash
         run: |
           set -euo pipefail
@@ -270,17 +167,18 @@ jobs:
 
           CFLAGS="${{ matrix.build_flags }} -DMAJOR=$(echo ${{ env.VERSION }} | cut -d. -f1) -DMINOR=$(echo ${{ env.VERSION }} | cut -d. -f2) -DPATCH=$(echo ${{ env.VERSION }} | cut -d. -f3)"
 
-          if [ -z "${{ matrix.cross_prefix }}" ]; then
-            make BUILD_FOLDER="${{ env.BUILD_DIR }}" CFLAGS="$CFLAGS"
-          else
-            make BUILD_FOLDER="${{ env.BUILD_DIR }}" CROSS=${{ matrix.cross_prefix }} CFLAGS="$CFLAGS"
-          fi
+          make BUILD_FOLDER="${{ env.BUILD_DIR }}" CFLAGS="$CFLAGS"
 
           BUILD_END=$(date +%s)
           BUILD_DURATION=$((BUILD_END - BUILD_START))
           echo "BUILD_DURATION=${BUILD_DURATION}" >> $GITHUB_ENV
 
-          BINARY="${{ env.BUILD_DIR }}/vframetest"
+          if [ "${{ matrix.os }}" = "macos" ]; then
+            BINARY="${{ env.BUILD_DIR }}/vframetest"
+          else
+            BINARY="${{ env.BUILD_DIR }}/vframetest"
+          fi
+
           if [ ! -f "$BINARY" ]; then
             echo "❌ Build failed: Binary not found at $BINARY"
             exit 1
@@ -288,29 +186,14 @@ jobs:
 
           echo "✅ Build successful"
           ls -lh "$BINARY"
-
-      - name: Verify binary functionality (Windows)
-        if: runner.os == 'Windows'
-        shell: msys2 {0}
-        run: |
-          set -euo pipefail
-          BINARY="${{ env.BUILD_DIR }}/vframetest.exe"
-
-          echo "=== Smoke Test: Version Check (Windows) ==="
-          "$BINARY" --version || {
-            echo "❌ Binary version check failed"
-            exit 1
-          }
-          echo "✅ Smoke test passed"
 
       - name: Verify binary functionality (*nix)
-        if: runner.os != 'Windows'
         shell: bash
         run: |
           set -euo pipefail
           BINARY="${{ env.BUILD_DIR }}/vframetest"
 
-          echo "=== Smoke Test: Version Check (*nix) ==="
+          echo "=== Smoke Test: Version Check ==="
           "$BINARY" --version || {
             echo "❌ Binary version check failed"
             exit 1
@@ -319,18 +202,23 @@ jobs:
 
       - name: Create universal binary (macOS arm64+x86_64 only)
         if: matrix.os == 'macos' && matrix.arch == 'universal'
+        shell: bash
         run: |
           set -euo pipefail
           mkdir -p "${{ env.DIST_DIR }}"
 
+          VMAJOR=$(echo ${{ env.VERSION }} | cut -d. -f1)
+          VMINOR=$(echo ${{ env.VERSION }} | cut -d. -f2)
+          VPATCH=$(echo ${{ env.VERSION }} | cut -d. -f3)
+
           # Build arm64
           make clean BUILD_FOLDER="${{ env.BUILD_DIR }}/arm64"
-          make BUILD_FOLDER="${{ env.BUILD_DIR }}/arm64" CFLAGS="-arch arm64 -DMAJOR=$(echo ${{ env.VERSION }} | cut -d. -f1) -DMINOR=$(echo ${{ env.VERSION }} | cut -d. -f2) -DPATCH=$(echo ${{ env.VERSION }} | cut -d. -f3)"
+          make BUILD_FOLDER="${{ env.BUILD_DIR }}/arm64" CFLAGS="-arch arm64 -DMAJOR=${VMAJOR} -DMINOR=${VMINOR} -DPATCH=${VPATCH}"
           cp "${{ env.BUILD_DIR }}/arm64/vframetest" "${{ env.DIST_DIR }}/vframetest-arm64"
 
           # Build x86_64
           make clean BUILD_FOLDER="${{ env.BUILD_DIR }}/x86_64"
-          make BUILD_FOLDER="${{ env.BUILD_DIR }}/x86_64" CFLAGS="-arch x86_64 -DMAJOR=$(echo ${{ env.VERSION }} | cut -d. -f1) -DMINOR=$(echo ${{ env.VERSION }} | cut -d. -f2) -DPATCH=$(echo ${{ env.VERSION }} | cut -d. -f3)"
+          make BUILD_FOLDER="${{ env.BUILD_DIR }}/x86_64" CFLAGS="-arch x86_64 -DMAJOR=${VMAJOR} -DMINOR=${VMINOR} -DPATCH=${VPATCH}"
           cp "${{ env.BUILD_DIR }}/x86_64/vframetest" "${{ env.DIST_DIR }}/vframetest-x86_64"
 
           # Create universal binary
@@ -338,7 +226,6 @@ jobs:
             "${{ env.DIST_DIR }}/vframetest-arm64" \
             "${{ env.DIST_DIR }}/vframetest-x86_64"
 
-          # Verify
           file "${{ env.DIST_DIR }}/vframetest-macos-universal"
           echo "✅ Universal binary created"
 
@@ -348,16 +235,9 @@ jobs:
         run: |
           mkdir -p "${{ env.DIST_DIR }}"
 
-          if [ "${{ runner.os }}" = "Windows" ]; then
-            BINARY="${{ env.BUILD_DIR }}/vframetest.exe"
-            if [ -f "$BINARY" ]; then
-              cp "$BINARY" "${{ env.DIST_DIR }}/"
-            fi
-          else
-            BINARY="${{ env.BUILD_DIR }}/vframetest"
-            if [ -f "$BINARY" ]; then
-              cp "$BINARY" "${{ env.DIST_DIR }}/"
-            fi
+          BINARY="${{ env.BUILD_DIR }}/vframetest"
+          if [ -f "$BINARY" ]; then
+            cp "$BINARY" "${{ env.DIST_DIR }}/"
           fi
 
           echo "Artifacts prepared in ${{ env.DIST_DIR }}"
@@ -376,7 +256,7 @@ jobs:
         if: always()
         shell: bash
         run: |
-          cat > build-report-${{ matrix.artifact_suffix }}.txt << 'EOF'
+          cat > build-report-${{ matrix.artifact_suffix }}.txt << EOF
           Build Report
           ============
           OS: ${{ matrix.os }}
@@ -394,18 +274,154 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: build-reports
-          path: build-report-*.txt
+          # UNIQUE name per matrix entry (fixes 409 conflicts)
+          name: build-reports-${{ matrix.artifact_suffix }}
+          path: build-report-${{ matrix.artifact_suffix }}.txt
           if-no-files-found: warn
           retention-days: 7
 
   # ============================================================================
-  # TEST JOB - Run comprehensive tests
+  # BUILD JOB - Windows (separate job, MSYS2 shell)
   # ============================================================================
-  test:
+  build-windows:
+    name: Build windows (${{ matrix.arch }})
+    runs-on: windows-latest
+    needs: lint
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [x86_64, i686]
+    defaults:
+      run:
+        shell: msys2 {0}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Setup MSYS2
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: true
+          install: >-
+            mingw-w64-x86_64-toolchain
+            mingw-w64-i686-toolchain
+            make
+            cppcheck
+
+      - name: Set build environment
+        run: |
+          echo "BUILD_DIR=$(pwd)/build-windows-${{ matrix.arch }}" >> $GITHUB_ENV
+          echo "DIST_DIR=$(pwd)/dist-windows-${{ matrix.arch }}" >> $GITHUB_ENV
+
+          MAJOR=$(grep '^MAJOR=' Makefile | cut -d= -f2)
+          MINOR=$(grep '^MINOR=' Makefile | cut -d= -f2)
+          PATCH=$(grep '^PATCH=' Makefile | cut -d= -f2)
+          echo "VERSION=${MAJOR}.${MINOR}.${PATCH}" >> $GITHUB_ENV
+
+      - name: Build binary (Windows)
+        run: |
+          set -euo pipefail
+
+          echo "=== Build Configuration (Windows) ==="
+          echo "Arch: ${{ matrix.arch }}"
+          echo "Build Directory: ${{ env.BUILD_DIR }}"
+          echo "Version: ${{ env.VERSION }}"
+
+          BUILD_START=$(date +%s)
+
+          mkdir -p "${{ env.BUILD_DIR }}"
+          make clean BUILD_FOLDER="${{ env.BUILD_DIR }}" || true
+
+          VMAJOR=$(echo ${{ env.VERSION }} | cut -d. -f1)
+          VMINOR=$(echo ${{ env.VERSION }} | cut -d. -f2)
+          VPATCH=$(echo ${{ env.VERSION }} | cut -d. -f3)
+          CFLAGS="-DMAJOR=${VMAJOR} -DMINOR=${VMINOR} -DPATCH=${VPATCH}"
+
+          if [ "${{ matrix.arch }}" = "i686" ]; then
+            CROSS=i686-w64-mingw32- make BUILD_FOLDER="${{ env.BUILD_DIR }}" CFLAGS="$CFLAGS"
+          else
+            make BUILD_FOLDER="${{ env.BUILD_DIR }}" CFLAGS="$CFLAGS"
+          fi
+
+          BUILD_END=$(date +%s)
+          BUILD_DURATION=$((BUILD_END - BUILD_START))
+          echo "BUILD_DURATION=${BUILD_DURATION}" >> $GITHUB_ENV
+
+          BINARY="${{ env.BUILD_DIR }}/vframetest.exe"
+          if [ ! -f "$BINARY" ]; then
+            echo "❌ Build failed: Binary not found at $BINARY"
+            exit 1
+          fi
+
+          echo "✅ Build successful"
+          ls -lh "$BINARY"
+
+      - name: Smoke test (Windows)
+        run: |
+          set -euo pipefail
+          BINARY="${{ env.BUILD_DIR }}/vframetest.exe"
+
+          echo "=== Smoke Test: Version Check (Windows) ==="
+          "$BINARY" --version || {
+            echo "❌ Binary version check failed"
+            exit 1
+          }
+          echo "✅ Smoke test passed"
+
+      - name: Prepare artifacts for upload
+        if: always()
+        run: |
+          mkdir -p "${{ env.DIST_DIR }}"
+          BINARY="${{ env.BUILD_DIR }}/vframetest.exe"
+          if [ -f "$BINARY" ]; then
+            cp "$BINARY" "${{ env.DIST_DIR }}/vframetest-windows-${{ matrix.arch }}.exe"
+          fi
+          ls -lh "${{ env.DIST_DIR }}" || echo "No artifacts found"
+
+      - name: Upload build artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: vframetest-windows-${{ matrix.arch }}
+          path: ${{ env.DIST_DIR }}/
+          if-no-files-found: warn
+          retention-days: 30
+
+      - name: Upload build report
+        if: always()
+        run: |
+          cat > build-report-windows-${{ matrix.arch }}.txt << EOF
+          Build Report
+          ============
+          OS: windows
+          Architecture: ${{ matrix.arch }}
+          Version: ${{ env.VERSION }}
+          Duration: ${{ env.BUILD_DURATION }}s
+          Status: ${{ job.status }}
+          Timestamp: $(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          Commit: ${{ github.sha }}
+          EOF
+
+      - name: Upload build report artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-reports-windows-${{ matrix.arch }}
+          path: build-report-windows-${{ matrix.arch }}.txt
+          if-no-files-found: warn
+          retention-days: 7
+
+  # ============================================================================
+  # TEST JOBS
+  # ============================================================================
+  test-unix:
     name: Test ${{ matrix.os }} (${{ matrix.arch }})
     runs-on: ${{ matrix.runner }}
-    needs: build
+    needs: [build-unix]
     permissions:
       contents: read
     strategy:
@@ -415,17 +431,9 @@ jobs:
           - os: linux
             runner: ubuntu-latest
             arch: x86_64
-            cc: gcc
-
           - os: macos
             runner: macos-latest
             arch: x86_64
-            cc: clang
-
-          - os: windows
-            runner: windows-latest
-            arch: x86_64
-            cc: mingw
 
     steps:
       - uses: actions/checkout@v4
@@ -435,9 +443,7 @@ jobs:
       - name: Set test environment variables
         shell: bash
         run: |
-          echo "BUILD_DIR=$(pwd)/build" >> $GITHUB_ENV
-
-          # Read version from Makefile
+          echo "BUILD_DIR=$(pwd)/build-test" >> $GITHUB_ENV
           MAJOR=$(grep '^MAJOR=' Makefile | cut -d= -f2)
           MINOR=$(grep '^MINOR=' Makefile | cut -d= -f2)
           PATCH=$(grep '^PATCH=' Makefile | cut -d= -f2)
@@ -454,31 +460,11 @@ jobs:
         run: |
           brew install valgrind 2>/dev/null || echo "Valgrind may not be available on macOS"
 
-      - name: Install test dependencies (Windows)
-        if: runner.os == 'Windows'
-        uses: msys2/setup-msys2@v2
-        with:
-          msystem: mingw64
-          update: true
-          install: >-
-            mingw-w64-x86_64-toolchain
-            make
-
-      - name: Build and run unit tests (Windows)
-        if: runner.os == 'Windows'
-        shell: msys2 {0}
-        run: |
-          set -euo pipefail
-          echo "=== Running Unit Tests (Windows) ==="
-          make test BUILD_FOLDER="${{ env.BUILD_DIR }}"
-          echo "✅ Unit tests passed"
-
       - name: Build and run unit tests (*nix)
-        if: runner.os != 'Windows'
         shell: bash
         run: |
           set -euo pipefail
-          echo "=== Running Unit Tests (*nix) ==="
+          echo "=== Running Unit Tests ==="
           make test BUILD_FOLDER="${{ env.BUILD_DIR }}"
           echo "✅ Unit tests passed"
 
@@ -489,7 +475,7 @@ jobs:
           echo "=== Memory Leak Detection ==="
           valgrind --leak-check=full --show-leak-kinds=all \
             --track-origins=yes --verbose \
-            "${{ env.BUILD_DIR }}/test-runner" 2>&1 | head -100 || echo "⚠️ Valgrind check completed (some issues may be false positives)"
+            "${{ env.BUILD_DIR }}/test-runner" 2>&1 | head -100 || echo "⚠️ Valgrind check completed"
 
       - name: Upload test results
         if: always()
@@ -502,13 +488,47 @@ jobs:
           if-no-files-found: warn
           retention-days: 7
 
+  test-windows:
+    name: Test windows (x86_64)
+    runs-on: windows-latest
+    needs: [build-windows]
+    permissions:
+      contents: read
+    defaults:
+      run:
+        shell: msys2 {0}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Setup MSYS2
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: true
+          install: >-
+            mingw-w64-x86_64-toolchain
+            make
+
+      - name: Set test env
+        run: |
+          echo "BUILD_DIR=$(pwd)/build-test-windows" >> $GITHUB_ENV
+
+      - name: Build and run unit tests (Windows)
+        run: |
+          set -euo pipefail
+          echo "=== Running Unit Tests (Windows) ==="
+          make test BUILD_FOLDER="${{ env.BUILD_DIR }}"
+          echo "✅ Unit tests passed"
+
   # ============================================================================
-  # PACKAGE JOB - Create release artifacts
+  # PACKAGE JOB
   # ============================================================================
   package:
     name: Package Release
     runs-on: ubuntu-latest
-    needs: [build, test]
+    needs: [build-unix, build-windows, test-unix, test-windows]
     if: startsWith(github.ref, 'refs/tags/v')
     permissions:
       contents: read
@@ -534,19 +554,13 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p "${{ env.RELEASE_DIR }}"
-
           echo "=== Organizing Release Artifacts ==="
-
-          # Find and copy all binaries
           find artifacts -name "vframetest*" -type f | while read artifact; do
             filename=$(basename "$artifact")
             target_name="vframetest-${{ env.VERSION }}-${filename#vframetest-}"
             cp "$artifact" "${{ env.RELEASE_DIR }}/${target_name}"
             echo "Packaged: ${target_name}"
           done
-
-          # List final packages
-          echo ""
           echo "=== Release Artifacts ==="
           ls -lh "${{ env.RELEASE_DIR }}/" || echo "No artifacts found"
 
@@ -554,39 +568,35 @@ jobs:
         shell: bash
         run: |
           cd "${{ env.RELEASE_DIR }}"
-
           if command -v sha256sum > /dev/null; then
             sha256sum * > SHA256SUMS
           elif command -v shasum > /dev/null; then
             shasum -a 256 * > SHA256SUMS
           fi
-
-          echo "=== Checksums ==="
           cat SHA256SUMS
 
       - name: Generate release notes
         shell: bash
         run: |
-          cat > "${{ env.RELEASE_DIR }}/RELEASE_NOTES.md" << 'EOF'
+          cat > "${{ env.RELEASE_DIR }}/RELEASE_NOTES.md" << EOF
           # Release ${{ env.VERSION }}
 
           ## Build Information
-          - **Commit**: ${{ github.sha }}
-          - **Branch**: ${{ github.ref }}
-          - **Build Time**: $(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          - Commit: ${{ github.sha }}
+          - Branch: ${{ github.ref }}
+          - Build Time: $(date -u +"%Y-%m-%dT%H:%M:%SZ")
 
           ## Artifacts
-          - `vframetest-${{ env.VERSION }}-macos-universal` - macOS Universal Binary (arm64 + x86_64)
-          - `vframetest-${{ env.VERSION }}-macos-arm64` - macOS ARM64 Binary
-          - `vframetest-${{ env.VERSION }}-macos-x86_64` - macOS x86_64 Binary
-          - `vframetest-${{ env.VERSION }}-linux-gcc-x86_64` - Linux x86_64 (GCC compiled)
-          - `vframetest-${{ env.VERSION }}-linux-clang-x86_64` - Linux x86_64 (Clang compiled)
-          - `vframetest-${{ env.VERSION }}-windows-x86_64.exe` - Windows x86_64
-          - `vframetest-${{ env.VERSION }}-windows-i686.exe` - Windows i686
+          - vframetest-${{ env.VERSION }}-macos-universal
+          - vframetest-${{ env.VERSION }}-macos-arm64
+          - vframetest-${{ env.VERSION }}-macos-x86_64
+          - vframetest-${{ env.VERSION }}-linux-gcc-x86_64
+          - vframetest-${{ env.VERSION }}-linux-clang-x86_64
+          - vframetest-${{ env.VERSION }}-windows-x86_64.exe
+          - vframetest-${{ env.VERSION }}-windows-i686.exe
 
           ## Verification
-          - Verify checksums: `sha256sum -c SHA256SUMS`
-          - All binaries compiled and tested on CI/CD
+          - Verify checksums: sha256sum -c SHA256SUMS
           EOF
           cat "${{ env.RELEASE_DIR }}/RELEASE_NOTES.md"
 
@@ -598,7 +608,7 @@ jobs:
           retention-days: 90
 
   # ============================================================================
-  # DEPLOY JOB - Create GitHub release
+  # DEPLOY JOB
   # ============================================================================
   deploy:
     name: Create GitHub Release
@@ -624,66 +634,21 @@ jobs:
           name: release-${{ env.VERSION }}
           path: release-artifacts
 
-      - name: Validate release artifacts
-        shell: bash
-        run: |
-          set -euo pipefail
-          echo "=== Validating Release Artifacts ==="
-
-          cd release-artifacts
-
-          # Check for expected files
-          EXPECTED_FILES=(
-            "vframetest-${{ env.VERSION }}-macos-universal"
-            "vframetest-${{ env.VERSION }}-linux-gcc-x86_64"
-            "vframetest-${{ env.VERSION }}-windows-x86_64.exe"
-            "SHA256SUMS"
-          )
-
-          for file in "${EXPECTED_FILES[@]}"; do
-            if [ ! -f "$file" ]; then
-              echo "⚠️ Warning: Expected file not found: $file"
-            else
-              echo "✅ Found: $file"
-            fi
-          done
-
-          # Verify checksums
-          if [ -f "SHA256SUMS" ]; then
-            echo ""
-            echo "=== Verifying Checksums ==="
-            if command -v sha256sum > /dev/null; then
-              sha256sum -c SHA256SUMS || echo "⚠️ Some checksums may not match"
-            elif command -v shasum > /dev/null; then
-              shasum -a 256 -c SHA256SUMS || echo "⚠️ Some checksums may not match"
-            fi
-          fi
-
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
         with:
-          files: |
-            release-artifacts/*
+          files: release-artifacts/*
           generate_release_notes: true
-          draft: false
-          prerelease: ${{ contains(github.ref, 'alpha') || contains(github.ref, 'beta') }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Publish release notification
-        if: success()
-        shell: bash
-        run: |
-          echo "✅ Release ${{ env.VERSION }} published successfully"
-          echo "📦 Artifacts available at: https://github.com/${{ github.repository }}/releases/tag/${{ github.ref_name }}"
-
   # ============================================================================
-  # STATUS CHECK - Final verification
+  # STATUS CHECK
   # ============================================================================
   status-check:
     name: CI Status Check
     runs-on: ubuntu-latest
-    needs: [lint, build, test]
+    needs: [lint, build-unix, build-windows, test-unix, test-windows]
     if: always()
     permissions:
       contents: read
@@ -693,21 +658,29 @@ jobs:
         run: |
           echo "=== CI/CD Pipeline Status ==="
           echo "Lint: ${{ needs.lint.result }}"
-          echo "Build: ${{ needs.build.result }}"
-          echo "Test: ${{ needs.test.result }}"
+          echo "Build-unix: ${{ needs.build-unix.result }}"
+          echo "Build-windows: ${{ needs.build-windows.result }}"
+          echo "Test-unix: ${{ needs.test-unix.result }}"
+          echo "Test-windows: ${{ needs.test-windows.result }}"
 
           if [ "${{ needs.lint.result }}" != "success" ] && [ "${{ needs.lint.result }}" != "skipped" ]; then
             echo "❌ Lint failed"
             exit 1
           fi
-
-          if [ "${{ needs.build.result }}" != "success" ]; then
-            echo "❌ Build failed"
+          if [ "${{ needs.build-unix.result }}" != "success" ]; then
+            echo "❌ Unix build failed"
             exit 1
           fi
-
-          if [ "${{ needs.test.result }}" != "success" ]; then
-            echo "❌ Test failed"
+          if [ "${{ needs.build-windows.result }}" != "success" ]; then
+            echo "❌ Windows build failed"
+            exit 1
+          fi
+          if [ "${{ needs.test-unix.result }}" != "success" ]; then
+            echo "❌ Unix tests failed"
+            exit 1
+          fi
+          if [ "${{ needs.test-windows.result }}" != "success" ]; then
+            echo "❌ Windows tests failed"
             exit 1
           fi
 
