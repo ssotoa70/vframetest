@@ -30,6 +30,22 @@ enum CompletionStat {
 	COMP_CLOSE,
 };
 
+/* Phase 2: Helper function to get filesystem type name */
+static const char *get_filesystem_name(filesystem_type_t fs_type)
+{
+	switch (fs_type) {
+	case FILESYSTEM_LOCAL:
+		return "LOCAL";
+	case FILESYSTEM_SMB:
+		return "SMB";
+	case FILESYSTEM_NFS:
+		return "NFS";
+	case FILESYSTEM_OTHER:
+	default:
+		return "OTHER";
+	}
+}
+
 static void print_stat_about(const test_result_t *res, const char *label,
 			     enum CompletionStat stat, int csv)
 {
@@ -232,8 +248,11 @@ void print_header_csv(const opts_t *opts)
 	if (opts->times)
 		extra = ",omin,oavg,omax,iomin,ioavg,iomax,cmin,cavg,cmax";
 
+	/* Phase 2: Add filesystem, success rate, and I/O stats columns */
 	printf("case,profile,threads,frames,bytes,time,fps,bps,mibps,"
-	       "fmin,favg,fmax%s\n",
+	       "fmin,favg,fmax%s,"
+	       "filesystem,success_rate,frames_failed,frames_succeeded,"
+	       "direct_io_frames,buffered_io_frames,fallback_count,direct_io_rate\n",
 	       extra);
 }
 
@@ -258,7 +277,16 @@ void print_results_csv(const char *tcase, const opts_t *opts,
 	printf("%.9lf,", (double)res->bytes_written * SEC_IN_NS / (1024 * 1024) /
 			       res->time_taken_ns);
 	print_frames_stat(res, opts);
-	printf("\n");
+	/* Phase 2: Add filesystem, success rate, and I/O stats */
+	printf("%s,%.2f,%d,%d,%d,%d,%d,%.2f\n",
+	       get_filesystem_name(res->filesystem_type),
+	       res->success_rate_percent,
+	       res->frames_failed,
+	       res->frames_succeeded,
+	       res->frames_direct_io,
+	       res->frames_buffered_io,
+	       res->fallback_count,
+	       res->direct_io_success_rate);
 	print_frame_times(res, opts);
 	/* Phase 2: Print error data in CSV format */
 	print_errors_csv(res);
@@ -326,6 +354,20 @@ void print_results_json(const char *tcase, const opts_t *opts,
 	} else {
 		printf("      \"completion\": null,\n");
 	}
+
+	/* Phase 2: Add filesystem, success rate, and I/O stats to JSON */
+	printf("      \"filesystem\": \"%s\",\n", get_filesystem_name(res->filesystem_type));
+	printf("      \"success_metrics\": {\n");
+	printf("        \"success_rate_percent\": %.2f,\n", res->success_rate_percent);
+	printf("        \"frames_failed\": %d,\n", res->frames_failed);
+	printf("        \"frames_succeeded\": %d\n", res->frames_succeeded);
+	printf("      },\n");
+	printf("      \"io_fallback_stats\": {\n");
+	printf("        \"direct_io_frames\": %d,\n", res->frames_direct_io);
+	printf("        \"buffered_io_frames\": %d,\n", res->frames_buffered_io);
+	printf("        \"fallback_events\": %d,\n", res->fallback_count);
+	printf("        \"direct_io_success_rate\": %.2f\n", res->direct_io_success_rate);
+	printf("      },\n");
 
 	/* Phase 2: Add error data in JSON format */
 	print_errors_json(res);
