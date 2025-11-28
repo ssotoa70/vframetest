@@ -97,4 +97,10 @@ int platform_has_direct_io(platform_handle_t fd);
  */
 const char* platform_strerror(int error_code);
 
+/* Phase 3: Timeout handling for network filesystems
+ * Get recommended timeout in nanoseconds based on filesystem type
+ * Returns: timeout in nanoseconds (0 for no timeout)
+ */
+uint64_t platform_get_network_timeout(int filesystem_type);
+
 #endif

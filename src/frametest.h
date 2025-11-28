@@ -118,6 +118,15 @@ typedef struct test_result_t {
 	int frames_buffered_io;         /* Frames completed with Buffered I/O (fallback) */
 	int fallback_count;             /* Number of times fallback was triggered */
 	float direct_io_success_rate;   /* Percentage of frames that used Direct I/O */
+
+	/* NFS/SMB optimization (Phase 3) */
+	int is_remote_filesystem;       /* 1 if NFS/SMB, 0 if local */
+	int skipped_direct_io_attempt;  /* Skip Direct I/O on remote filesystems */
+	uint64_t min_frame_time_ns;     /* Minimum frame completion time */
+	uint64_t max_frame_time_ns;     /* Maximum frame completion time */
+	uint64_t avg_frame_time_ns;     /* Average frame completion time */
+	float performance_trend;        /* Performance trend over frames (-1=degrading, 0=stable, 1=improving) */
+	uint64_t network_timeout_ns;    /* Timeout for network operations in nanoseconds */
 } test_result_t;
 
 #endif

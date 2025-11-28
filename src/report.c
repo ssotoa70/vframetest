@@ -249,10 +249,12 @@ void print_header_csv(const opts_t *opts)
 		extra = ",omin,oavg,omax,iomin,ioavg,iomax,cmin,cavg,cmax";
 
 	/* Phase 2: Add filesystem, success rate, and I/O stats columns */
+	/* Phase 3: Add performance metrics and trend analysis */
 	printf("case,profile,threads,frames,bytes,time,fps,bps,mibps,"
 	       "fmin,favg,fmax%s,"
 	       "filesystem,success_rate,frames_failed,frames_succeeded,"
-	       "direct_io_frames,buffered_io_frames,fallback_count,direct_io_rate\n",
+	       "direct_io_frames,buffered_io_frames,fallback_count,direct_io_rate,"
+	       "is_remote,min_frame_time,avg_frame_time,max_frame_time,performance_trend,network_timeout\n",
 	       extra);
 }
 
@@ -278,7 +280,9 @@ void print_results_csv(const char *tcase, const opts_t *opts,
 			       res->time_taken_ns);
 	print_frames_stat(res, opts);
 	/* Phase 2: Add filesystem, success rate, and I/O stats */
-	printf("%s,%.2f,%d,%d,%d,%d,%d,%.2f\n",
+	/* Phase 3: Add performance metrics and trend analysis */
+	printf("%s,%.2f,%d,%d,%d,%d,%d,%.2f,"
+	       "%d,%" PRIu64 ",%" PRIu64 ",%" PRIu64 ",%.2f,%" PRIu64 "\n",
 	       get_filesystem_name(res->filesystem_type),
 	       res->success_rate_percent,
 	       res->frames_failed,
@@ -286,7 +290,13 @@ void print_results_csv(const char *tcase, const opts_t *opts,
 	       res->frames_direct_io,
 	       res->frames_buffered_io,
 	       res->fallback_count,
-	       res->direct_io_success_rate);
+	       res->direct_io_success_rate,
+	       res->is_remote_filesystem,
+	       res->min_frame_time_ns,
+	       res->avg_frame_time_ns,
+	       res->max_frame_time_ns,
+	       res->performance_trend,
+	       res->network_timeout_ns);
 	print_frame_times(res, opts);
 	/* Phase 2: Print error data in CSV format */
 	print_errors_csv(res);
@@ -367,6 +377,16 @@ void print_results_json(const char *tcase, const opts_t *opts,
 	printf("        \"buffered_io_frames\": %d,\n", res->frames_buffered_io);
 	printf("        \"fallback_events\": %d,\n", res->fallback_count);
 	printf("        \"direct_io_success_rate\": %.2f\n", res->direct_io_success_rate);
+	printf("      },\n");
+
+	/* Phase 3: Add NFS/SMB optimization metrics to JSON */
+	printf("      \"optimization_metrics\": {\n");
+	printf("        \"is_remote_filesystem\": %d,\n", res->is_remote_filesystem);
+	printf("        \"min_frame_time_ns\": %" PRIu64 ",\n", res->min_frame_time_ns);
+	printf("        \"avg_frame_time_ns\": %" PRIu64 ",\n", res->avg_frame_time_ns);
+	printf("        \"max_frame_time_ns\": %" PRIu64 ",\n", res->max_frame_time_ns);
+	printf("        \"performance_trend\": %.2f,\n", res->performance_trend);
+	printf("        \"network_timeout_ns\": %" PRIu64 "\n", res->network_timeout_ns);
 	printf("      },\n");
 
 	/* Phase 2: Add error data in JSON format */
