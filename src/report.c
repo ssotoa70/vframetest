@@ -129,6 +129,78 @@ static void print_frame_times(const test_result_t *res, const opts_t *opts)
 	}
 }
 
+/* Phase 2: Error reporting functions */
+static void print_error_stats(const test_result_t *res)
+{
+	if (!res || res->error_count == 0)
+		return;
+
+	printf("\n--- Error Statistics ---\n");
+	printf("Total errors: %d\n", res->error_count);
+
+	/* Count errors by operation type */
+	int open_errors = 0, read_errors = 0, write_errors = 0, close_errors = 0;
+	for (int i = 0; i < res->error_count; i++) {
+		if (res->errors[i].operation) {
+			if (res->errors[i].operation[0] == 'o') open_errors++;
+			else if (res->errors[i].operation[0] == 'r') read_errors++;
+			else if (res->errors[i].operation[0] == 'w') write_errors++;
+			else if (res->errors[i].operation[0] == 'c') close_errors++;
+		}
+	}
+
+	if (open_errors > 0) printf("Open errors: %d\n", open_errors);
+	if (read_errors > 0) printf("Read errors: %d\n", read_errors);
+	if (write_errors > 0) printf("Write errors: %d\n", write_errors);
+	if (close_errors > 0) printf("Close errors: %d\n", close_errors);
+
+	printf("Frames affected: %d\n", res->frames_failed);
+}
+
+static void print_errors_csv(const test_result_t *res)
+{
+	if (!res || res->error_count == 0)
+		return;
+
+	printf("\nerror_frame,error_operation,error_errno,error_message\n");
+	for (int i = 0; i < res->error_count; i++) {
+		printf("%d,\"%s\",%d,\"%s\"\n",
+		       res->errors[i].frame_number,
+		       res->errors[i].operation,
+		       res->errors[i].errno_value,
+		       res->errors[i].error_message);
+	}
+}
+
+static void print_errors_json(const test_result_t *res)
+{
+	if (!res || res->error_count == 0) {
+		printf("      \"errors\": null\n");
+		return;
+	}
+
+	printf("      \"errors\": {\n");
+	printf("        \"total_count\": %d,\n", res->error_count);
+	printf("        \"frames_affected\": %d,\n", res->frames_failed);
+	printf("        \"error_list\": [\n");
+
+	for (int i = 0; i < res->error_count; i++) {
+		printf("          {\n");
+		printf("            \"frame\": %d,\n", res->errors[i].frame_number);
+		printf("            \"operation\": \"%s\",\n", res->errors[i].operation);
+		printf("            \"errno\": %d,\n", res->errors[i].errno_value);
+		printf("            \"message\": \"%s\",\n", res->errors[i].error_message);
+		printf("            \"timestamp_ns\": %" PRIu64 "\n", res->errors[i].timestamp);
+		if (i < res->error_count - 1)
+			printf("          },\n");
+		else
+			printf("          }\n");
+	}
+
+	printf("        ]\n");
+	printf("      }\n");
+}
+
 void print_results(const char *tcase, const opts_t *opts,
 		   const test_result_t *res)
 {
@@ -149,6 +221,8 @@ void print_results(const char *tcase, const opts_t *opts,
 					 (1024 * 1024) / res->time_taken_ns);
 	print_frames_stat(res, opts);
 	print_frame_times(res, opts);
+	/* Phase 2: Print error statistics */
+	print_error_stats(res);
 }
 
 void print_header_csv(const opts_t *opts)
@@ -186,6 +260,8 @@ void print_results_csv(const char *tcase, const opts_t *opts,
 	print_frames_stat(res, opts);
 	printf("\n");
 	print_frame_times(res, opts);
+	/* Phase 2: Print error data in CSV format */
+	print_errors_csv(res);
 }
 
 void print_header_json(void)
@@ -248,8 +324,11 @@ void print_results_json(const char *tcase, const opts_t *opts,
 		printf("        \"max_ms\": %.9lf\n", (double)max / SEC_IN_MS);
 		printf("      }\n");
 	} else {
-		printf("      \"completion\": null\n");
+		printf("      \"completion\": null,\n");
 	}
+
+	/* Phase 2: Add error data in JSON format */
+	print_errors_json(res);
 
 	printf("    }\n");
 }
