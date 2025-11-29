@@ -36,6 +36,11 @@
 #include <dirent.h>
 #include <limits.h>
 
+/* Windows mkdir doesn't take a mode argument */
+#ifdef _WIN32
+#define mkdir(path, mode) mkdir(path)
+#endif
+
 #include "profile.h"
 #include "frame.h"
 #include "tester.h"
