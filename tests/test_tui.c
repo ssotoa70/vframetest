@@ -20,11 +20,12 @@
 #define PATCH 0
 #endif
 
-#include "tui.c"
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
 #include "unittest.h"
+#include "../src/tui.h"
+#include "../src/tui.c"
 
 void test_setup(void **state)
 {

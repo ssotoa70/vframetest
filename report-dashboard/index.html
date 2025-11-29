@@ -1,0 +1,1063 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>vframetest - Test Results Report</title>
+        <!-- TOAST UI Chart -->
+        <link
+            rel="stylesheet"
+            href="https://uicdn.toast.com/chart/latest/toastui-chart.min.css"
+        />
+        <script src="https://uicdn.toast.com/chart/latest/toastui-chart.min.js"></script>
+        <!-- html2pdf for PDF export -->
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+        <style>
+            :root {
+                --primary: #4a90d9;
+                --success: #2ecc71;
+                --warning: #f39c12;
+                --danger: #e74c3c;
+                --dark: #2c3e50;
+                --light: #ecf0f1;
+                --bg: #f5f7fa;
+            }
+
+            * {
+                margin: 0;
+                padding: 0;
+                box-sizing: border-box;
+            }
+
+            body {
+                font-family:
+                    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+                    "Helvetica Neue", Arial, sans-serif;
+                background: var(--bg);
+                color: var(--dark);
+                line-height: 1.6;
+            }
+
+            .container {
+                max-width: 1200px;
+                margin: 0 auto;
+                padding: 20px;
+            }
+
+            /* Header */
+            .header {
+                background: linear-gradient(135deg, var(--primary), #357abd);
+                color: white;
+                padding: 30px;
+                border-radius: 12px;
+                margin-bottom: 30px;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                box-shadow: 0 4px 15px rgba(74, 144, 217, 0.3);
+            }
+
+            .header h1 {
+                font-size: 2rem;
+                font-weight: 600;
+            }
+
+            .header-info {
+                text-align: right;
+                opacity: 0.9;
+            }
+
+            .header-info .date {
+                font-size: 0.9rem;
+            }
+
+            .header-info .version {
+                font-size: 1.1rem;
+                font-weight: 600;
+            }
+
+            .btn {
+                display: inline-flex;
+                align-items: center;
+                gap: 8px;
+                padding: 12px 24px;
+                border: none;
+                border-radius: 8px;
+                font-size: 1rem;
+                font-weight: 600;
+                cursor: pointer;
+                transition: all 0.2s;
+            }
+
+            .btn-export {
+                background: white;
+                color: var(--primary);
+            }
+
+            .btn-export:hover {
+                background: var(--light);
+                transform: translateY(-2px);
+            }
+
+            /* Summary Cards */
+            .summary-grid {
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+                gap: 20px;
+                margin-bottom: 30px;
+            }
+
+            .summary-card {
+                background: white;
+                padding: 24px;
+                border-radius: 12px;
+                box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+                text-align: center;
+            }
+
+            .summary-card .label {
+                font-size: 0.85rem;
+                color: #7f8c8d;
+                text-transform: uppercase;
+                letter-spacing: 1px;
+                margin-bottom: 8px;
+            }
+
+            .summary-card .value {
+                font-size: 2rem;
+                font-weight: 700;
+                color: var(--dark);
+            }
+
+            .summary-card .unit {
+                font-size: 1rem;
+                color: #95a5a6;
+                font-weight: normal;
+            }
+
+            .summary-card.success .value {
+                color: var(--success);
+            }
+            .summary-card.warning .value {
+                color: var(--warning);
+            }
+            .summary-card.danger .value {
+                color: var(--danger);
+            }
+
+            /* Chart Sections */
+            .section {
+                background: white;
+                border-radius: 12px;
+                padding: 24px;
+                margin-bottom: 24px;
+                box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+            }
+
+            .section-title {
+                font-size: 1.25rem;
+                font-weight: 600;
+                margin-bottom: 20px;
+                padding-bottom: 12px;
+                border-bottom: 2px solid var(--light);
+                color: var(--dark);
+            }
+
+            .chart-container {
+                width: 100%;
+                height: 350px;
+            }
+
+            .chart-row {
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+                gap: 24px;
+                margin-bottom: 24px;
+            }
+
+            /* Test Config Table */
+            .config-table {
+                width: 100%;
+                border-collapse: collapse;
+            }
+
+            .config-table th,
+            .config-table td {
+                padding: 12px 16px;
+                text-align: left;
+                border-bottom: 1px solid var(--light);
+            }
+
+            .config-table th {
+                background: var(--bg);
+                font-weight: 600;
+                color: #7f8c8d;
+                text-transform: uppercase;
+                font-size: 0.8rem;
+                letter-spacing: 1px;
+            }
+
+            .config-table td {
+                font-size: 0.95rem;
+            }
+
+            /* Stats Table */
+            .stats-grid {
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+                gap: 16px;
+            }
+
+            .stat-item {
+                text-align: center;
+                padding: 16px;
+                background: var(--bg);
+                border-radius: 8px;
+            }
+
+            .stat-item .stat-label {
+                font-size: 0.8rem;
+                color: #7f8c8d;
+                margin-bottom: 4px;
+            }
+
+            .stat-item .stat-value {
+                font-size: 1.3rem;
+                font-weight: 600;
+            }
+
+            /* Footer */
+            .footer {
+                text-align: center;
+                padding: 20px;
+                color: #95a5a6;
+                font-size: 0.9rem;
+            }
+
+            /* Print styles */
+            @media print {
+                body {
+                    background: white;
+                }
+                .btn {
+                    display: none;
+                }
+                .section {
+                    break-inside: avoid;
+                }
+            }
+
+            /* Loading state */
+            .loading {
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                height: 200px;
+                color: #95a5a6;
+            }
+
+            .no-data {
+                text-align: center;
+                padding: 40px;
+                color: #95a5a6;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="container" id="report-content">
+            <div class="header">
+                <div>
+                    <h1>vframetest Performance Report</h1>
+                    <p id="test-description">
+                        Frame Write/Read Benchmark Results
+                    </p>
+                </div>
+                <div class="header-info">
+                    <div class="date" id="report-date">-</div>
+                    <div class="version" id="report-version">
+                        vframetest v25.13.0
+                    </div>
+                </div>
+            </div>
+
+            <button class="btn btn-export" onclick="exportPDF()">
+                <svg
+                    width="20"
+                    height="20"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                >
+                    <path
+                        d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"
+                    />
+                </svg>
+                Export PDF
+            </button>
+
+            <!-- Summary Cards -->
+            <div class="summary-grid" id="summary-cards">
+                <div class="summary-card">
+                    <div class="label">Total Frames</div>
+                    <div class="value" id="total-frames">-</div>
+                </div>
+                <div class="summary-card success">
+                    <div class="label">Throughput</div>
+                    <div class="value" id="throughput">
+                        -<span class="unit"> MiB/s</span>
+                    </div>
+                </div>
+                <div class="summary-card">
+                    <div class="label">Avg Latency</div>
+                    <div class="value" id="avg-latency">
+                        -<span class="unit"> ms</span>
+                    </div>
+                </div>
+                <div class="summary-card success">
+                    <div class="label">Success Rate</div>
+                    <div class="value" id="success-rate">
+                        -<span class="unit">%</span>
+                    </div>
+                </div>
+                <div class="summary-card">
+                    <div class="label">Duration</div>
+                    <div class="value" id="duration">
+                        -<span class="unit"> s</span>
+                    </div>
+                </div>
+                <div class="summary-card">
+                    <div class="label">I/O Mode</div>
+                    <div class="value" id="io-mode" style="font-size: 1.2rem">
+                        -
+                    </div>
+                </div>
+            </div>
+
+            <!-- Test Configuration -->
+            <div class="section">
+                <h2 class="section-title">Test Configuration</h2>
+                <table class="config-table">
+                    <tr>
+                        <th>Profile</th>
+                        <th>Target Path</th>
+                        <th>Threads</th>
+                        <th>Frames</th>
+                        <th>Filesystem</th>
+                    </tr>
+                    <tr>
+                        <td id="config-profile">-</td>
+                        <td id="config-path">-</td>
+                        <td id="config-threads">-</td>
+                        <td id="config-frames">-</td>
+                        <td id="config-fs">-</td>
+                    </tr>
+                </table>
+            </div>
+
+            <!-- Latency Distribution -->
+            <div class="section">
+                <h2 class="section-title">Latency Distribution</h2>
+                <div id="latency-histogram" class="chart-container"></div>
+                <div class="stats-grid" style="margin-top: 20px">
+                    <div class="stat-item">
+                        <div class="stat-label">Min</div>
+                        <div
+                            class="stat-value"
+                            id="latency-min"
+                            style="color: var(--success)"
+                        >
+                            -
+                        </div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">P50</div>
+                        <div class="stat-value" id="latency-p50">-</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">P95</div>
+                        <div
+                            class="stat-value"
+                            id="latency-p95"
+                            style="color: var(--warning)"
+                        >
+                            -
+                        </div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">P99</div>
+                        <div
+                            class="stat-value"
+                            id="latency-p99"
+                            style="color: var(--danger)"
+                        >
+                            -
+                        </div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">Max</div>
+                        <div
+                            class="stat-value"
+                            id="latency-max"
+                            style="color: var(--danger)"
+                        >
+                            -
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Charts Row -->
+            <div class="chart-row">
+                <div class="section">
+                    <h2 class="section-title">Throughput Over Time</h2>
+                    <div id="throughput-chart" class="chart-container"></div>
+                </div>
+                <div class="section">
+                    <h2 class="section-title">Frame Latency Trend</h2>
+                    <div id="latency-trend" class="chart-container"></div>
+                </div>
+            </div>
+
+            <!-- I/O Mode and Status -->
+            <div class="chart-row">
+                <div class="section">
+                    <h2 class="section-title">I/O Mode Distribution</h2>
+                    <div id="io-mode-chart" class="chart-container"></div>
+                </div>
+                <div class="section">
+                    <h2 class="section-title">Frame Status</h2>
+                    <div id="status-chart" class="chart-container"></div>
+                </div>
+            </div>
+
+            <!-- Thread Distribution -->
+            <div class="section" id="thread-section" style="display: none">
+                <h2 class="section-title">Thread Distribution</h2>
+                <div id="thread-chart" class="chart-container"></div>
+            </div>
+
+            <div class="footer">
+                Generated by vframetest | <span id="generation-time"></span>
+            </div>
+        </div>
+
+        <script>
+            const Chart = toastui.Chart;
+
+            // Sample data - will be replaced by actual test data
+            let testData = null;
+
+            // Load test data from JSON
+            async function loadTestData() {
+                try {
+                    const response = await fetch("data/test-results.json");
+                    if (response.ok) {
+                        testData = await response.json();
+                        console.log("Loaded test data:", testData);
+                        console.log(
+                            "Frames count:",
+                            testData.frames ? testData.frames.length : 0,
+                        );
+                        console.log(
+                            "Throughput samples:",
+                            testData.throughput_samples
+                                ? testData.throughput_samples.length
+                                : 0,
+                        );
+                        renderReport();
+                    } else {
+                        console.log("Response not OK, using sample data");
+                        testData = generateSampleData();
+                        renderReport();
+                    }
+                } catch (e) {
+                    console.error("Error loading data:", e);
+                    testData = generateSampleData();
+                    renderReport();
+                }
+            }
+
+            // Generate sample data for demonstration
+            function generateSampleData() {
+                const frames = [];
+                const frameCount = 1800;
+                const baseLatency = 10; // ms
+
+                for (let i = 0; i < frameCount; i++) {
+                    // Generate realistic latency distribution
+                    const latency =
+                        baseLatency +
+                        Math.random() * 15 +
+                        (Math.random() > 0.95 ? 50 : 0);
+                    frames.push({
+                        frame_num: i + 1,
+                        duration_ms: latency,
+                        io_mode: Math.random() > 0.1 ? "direct" : "buffered",
+                        success: Math.random() > 0.005,
+                    });
+                }
+
+                return {
+                    config: {
+                        profile: "FULLHD-24bit",
+                        path: "/tmp/vframetest",
+                        threads: 4,
+                        frames: frameCount,
+                        filesystem: "LOCAL",
+                    },
+                    summary: {
+                        total_frames: frameCount,
+                        frames_succeeded: frames.filter((f) => f.success)
+                            .length,
+                        frames_failed: frames.filter((f) => !f.success).length,
+                        throughput_mibs: 856.4,
+                        duration_sec: 127.3,
+                        io_mode: "Direct",
+                    },
+                    latency: {
+                        min_ms: Math.min(...frames.map((f) => f.duration_ms)),
+                        max_ms: Math.max(...frames.map((f) => f.duration_ms)),
+                        avg_ms:
+                            frames.reduce((s, f) => s + f.duration_ms, 0) /
+                            frames.length,
+                        p50_ms: 15.2,
+                        p95_ms: 24.8,
+                        p99_ms: 45.3,
+                    },
+                    frames: frames,
+                    timestamp: new Date().toISOString(),
+                };
+            }
+
+            function renderReport() {
+                if (!testData) return;
+
+                // Update header
+                document.getElementById("report-date").textContent = new Date(
+                    testData.timestamp,
+                ).toLocaleString();
+                document.getElementById("test-description").textContent =
+                    `${testData.config.profile} - ${testData.summary.total_frames} frames @ ${testData.config.threads} threads`;
+
+                // Update summary cards
+                document.getElementById("total-frames").textContent =
+                    testData.summary.total_frames.toLocaleString();
+                document.getElementById("throughput").innerHTML =
+                    `${testData.summary.throughput_mibs.toFixed(1)}<span class="unit"> MiB/s</span>`;
+                document.getElementById("avg-latency").innerHTML =
+                    `${testData.latency.avg_ms.toFixed(2)}<span class="unit"> ms</span>`;
+
+                const successRate =
+                    (testData.summary.frames_succeeded /
+                        testData.summary.total_frames) *
+                    100;
+                document.getElementById("success-rate").innerHTML =
+                    `${successRate.toFixed(1)}<span class="unit">%</span>`;
+                document.getElementById("duration").innerHTML =
+                    `${testData.summary.duration_sec.toFixed(1)}<span class="unit"> s</span>`;
+                document.getElementById("io-mode").textContent =
+                    testData.summary.io_mode;
+
+                // Update config table
+                document.getElementById("config-profile").textContent =
+                    testData.config.profile;
+                document.getElementById("config-path").textContent =
+                    testData.config.path;
+                document.getElementById("config-threads").textContent =
+                    testData.config.threads;
+                document.getElementById("config-frames").textContent =
+                    testData.config.frames.toLocaleString();
+                document.getElementById("config-fs").textContent =
+                    testData.config.filesystem;
+
+                // Update latency stats
+                document.getElementById("latency-min").textContent =
+                    testData.latency.min_ms.toFixed(2) + " ms";
+                document.getElementById("latency-p50").textContent =
+                    testData.latency.p50_ms.toFixed(2) + " ms";
+                document.getElementById("latency-p95").textContent =
+                    testData.latency.p95_ms.toFixed(2) + " ms";
+                document.getElementById("latency-p99").textContent =
+                    testData.latency.p99_ms.toFixed(2) + " ms";
+                document.getElementById("latency-max").textContent =
+                    testData.latency.max_ms.toFixed(2) + " ms";
+
+                // Render charts with error handling
+                try {
+                    renderLatencyHistogram();
+                } catch (e) {
+                    console.error("Latency histogram error:", e);
+                }
+                try {
+                    renderThroughputChart();
+                } catch (e) {
+                    console.error("Throughput chart error:", e);
+                }
+                try {
+                    renderLatencyTrend();
+                } catch (e) {
+                    console.error("Latency trend error:", e);
+                }
+                try {
+                    renderIOChart();
+                } catch (e) {
+                    console.error("IO chart error:", e);
+                }
+                try {
+                    renderStatusChart();
+                } catch (e) {
+                    console.error("Status chart error:", e);
+                }
+                try {
+                    renderThreadChart();
+                } catch (e) {
+                    console.error("Thread chart error:", e);
+                }
+
+                // Update footer
+                document.getElementById("generation-time").textContent =
+                    new Date().toLocaleString();
+            }
+
+            function renderLatencyHistogram() {
+                const el = document.getElementById("latency-histogram");
+                el.innerHTML = "";
+
+                if (!testData.frames || testData.frames.length === 0) {
+                    el.innerHTML =
+                        '<div class="no-data">No frame data available</div>';
+                    return;
+                }
+
+                // Build histogram buckets - use fewer buckets for cleaner display
+                const bucketCount = 20;
+                const min = testData.latency.min_ms;
+                const max = testData.latency.max_ms;
+                const range = max - min || 1; // Avoid division by zero
+                const bucketSize = range / bucketCount;
+
+                const buckets = new Array(bucketCount).fill(0);
+                const labels = [];
+
+                for (let i = 0; i < bucketCount; i++) {
+                    const bucketStart = min + i * bucketSize;
+                    // Show range labels for clarity
+                    labels.push(bucketStart.toFixed(1));
+                }
+
+                testData.frames.forEach((f) => {
+                    const bucket = Math.min(
+                        Math.floor((f.duration_ms - min) / bucketSize),
+                        bucketCount - 1,
+                    );
+                    if (bucket >= 0) buckets[bucket]++;
+                });
+
+                const data = {
+                    categories: labels,
+                    series: [
+                        {
+                            name: "Frames",
+                            data: buckets,
+                        },
+                    ],
+                };
+
+                const options = {
+                    chart: { width: "auto", height: 300 },
+                    xAxis: {
+                        title: "Latency (ms)",
+                        label: {
+                            interval: 2,
+                            formatter: (val) => parseFloat(val).toFixed(0),
+                        },
+                    },
+                    yAxis: {
+                        title: "Frame Count",
+                        label: {
+                            formatter: (val) => {
+                                if (val >= 1000)
+                                    return (val / 1000).toFixed(1) + "k";
+                                return val.toString();
+                            },
+                        },
+                    },
+                    series: {
+                        barWidth: "auto",
+                    },
+                    theme: {
+                        series: {
+                            colors: ["#4a90d9"],
+                        },
+                    },
+                    legend: { visible: false },
+                    exportMenu: { visible: false },
+                };
+
+                Chart.barChart({ el, data, options });
+            }
+
+            function renderThroughputChart() {
+                const el = document.getElementById("throughput-chart");
+                el.innerHTML = "";
+
+                // Use real throughput samples from JSON data
+                const labels = [];
+                const throughputData = [];
+
+                if (
+                    testData.throughput_samples &&
+                    testData.throughput_samples.length > 0
+                ) {
+                    // Use actual throughput samples from test data
+                    testData.throughput_samples.forEach((sample) => {
+                        labels.push(sample.frame.toString());
+                        throughputData.push(sample.throughput_mibs);
+                    });
+                } else if (testData.frames && testData.frames.length > 0) {
+                    // Fallback: estimate throughput per window using overall throughput
+                    const avgThroughput = testData.summary.throughput_mibs || 0;
+                    const windowSize = Math.max(
+                        1,
+                        Math.floor(testData.frames.length / 50),
+                    );
+
+                    for (
+                        let i = 0;
+                        i < testData.frames.length;
+                        i += windowSize
+                    ) {
+                        const windowEnd = Math.min(
+                            i + windowSize,
+                            testData.frames.length,
+                        );
+                        let windowDuration = 0;
+                        let windowAvgLatency = 0;
+
+                        for (let j = i; j < windowEnd; j++) {
+                            windowDuration += testData.frames[j].duration_ms;
+                        }
+                        windowAvgLatency = windowDuration / (windowEnd - i);
+
+                        // Estimate throughput variation based on latency variation
+                        const avgLatency = testData.latency.avg_ms || 1;
+                        const throughputRatio =
+                            avgLatency / Math.max(windowAvgLatency, 0.1);
+
+                        labels.push(testData.frames[i].frame_num.toString());
+                        throughputData.push(
+                            avgThroughput * Math.min(throughputRatio, 2.0),
+                        );
+                    }
+                }
+
+                if (labels.length === 0) {
+                    el.innerHTML =
+                        '<div class="no-data">No throughput data available</div>';
+                    return;
+                }
+
+                const data = {
+                    categories: labels,
+                    series: [
+                        {
+                            name: "Throughput (MiB/s)",
+                            data: throughputData,
+                        },
+                    ],
+                };
+
+                const options = {
+                    chart: { width: "auto", height: 300 },
+                    xAxis: {
+                        title: "Frame #",
+                        label: {
+                            interval: Math.max(
+                                1,
+                                Math.floor(labels.length / 10),
+                            ),
+                        },
+                    },
+                    yAxis: { title: "MiB/s" },
+                    series: {
+                        spline: true,
+                        showDot: false,
+                    },
+                    theme: {
+                        series: {
+                            colors: ["#2ecc71"],
+                        },
+                    },
+                    legend: { visible: false },
+                    exportMenu: { visible: false },
+                };
+
+                Chart.lineChart({ el, data, options });
+            }
+
+            function renderLatencyTrend() {
+                const el = document.getElementById("latency-trend");
+                el.innerHTML = "";
+
+                if (!testData.frames || testData.frames.length === 0) {
+                    el.innerHTML =
+                        '<div class="no-data">No frame data available</div>';
+                    return;
+                }
+
+                // Sample frames for trend with moving average
+                const targetSamples = 100;
+                const step = Math.max(
+                    1,
+                    Math.floor(testData.frames.length / targetSamples),
+                );
+                const labels = [];
+                const latencyData = [];
+                const avgData = [];
+
+                // Calculate moving average window
+                const avgWindow = Math.max(
+                    5,
+                    Math.floor(testData.frames.length / 20),
+                );
+
+                for (let i = 0; i < testData.frames.length; i += step) {
+                    labels.push(testData.frames[i].frame_num.toString());
+                    latencyData.push(testData.frames[i].duration_ms);
+
+                    // Calculate moving average
+                    let sum = 0;
+                    let count = 0;
+                    const start = Math.max(0, i - avgWindow);
+                    const end = Math.min(testData.frames.length, i + avgWindow);
+                    for (let j = start; j < end; j++) {
+                        sum += testData.frames[j].duration_ms;
+                        count++;
+                    }
+                    avgData.push(count > 0 ? sum / count : 0);
+                }
+
+                const data = {
+                    categories: labels,
+                    series: [
+                        { name: "Latency (ms)", data: latencyData },
+                        { name: "Moving Avg", data: avgData },
+                    ],
+                };
+
+                const options = {
+                    chart: { width: "auto", height: 300 },
+                    xAxis: {
+                        title: "Frame #",
+                        label: {
+                            interval: Math.max(
+                                1,
+                                Math.floor(labels.length / 10),
+                            ),
+                        },
+                    },
+                    yAxis: { title: "ms" },
+                    series: {
+                        spline: true,
+                        showDot: false,
+                    },
+                    theme: {
+                        series: {
+                            colors: ["#f39c12", "#3498db"],
+                        },
+                    },
+                    legend: { visible: true },
+                    exportMenu: { visible: false },
+                };
+
+                Chart.lineChart({ el, data, options });
+            }
+
+            function renderIOChart() {
+                const el = document.getElementById("io-mode-chart");
+                el.innerHTML = "";
+
+                if (!testData.frames || testData.frames.length === 0) {
+                    el.innerHTML =
+                        '<div class="no-data">No frame data available</div>';
+                    return;
+                }
+
+                const directCount = testData.frames.filter(
+                    (f) => f.io_mode === "direct",
+                ).length;
+                const bufferedCount = testData.frames.filter(
+                    (f) => f.io_mode === "buffered",
+                ).length;
+
+                // Only show chart if we have data
+                if (directCount === 0 && bufferedCount === 0) {
+                    el.innerHTML =
+                        '<div class="no-data">No I/O mode data</div>';
+                    return;
+                }
+
+                const data = {
+                    categories: ["I/O Mode"],
+                    series: [
+                        { name: "Direct I/O", data: directCount },
+                        { name: "Buffered I/O", data: bufferedCount },
+                    ],
+                };
+
+                const options = {
+                    chart: { width: "auto", height: 300 },
+                    series: {
+                        radiusRange: { inner: "40%", outer: "90%" },
+                        dataLabels: {
+                            visible: true,
+                            pieSeriesName: { visible: true },
+                        },
+                    },
+                    theme: {
+                        series: { colors: ["#2ecc71", "#e74c3c"] },
+                    },
+                    legend: { visible: true },
+                    exportMenu: { visible: false },
+                };
+
+                Chart.pieChart({ el, data, options });
+            }
+
+            function renderStatusChart() {
+                const el = document.getElementById("status-chart");
+                el.innerHTML = "";
+
+                if (!testData.summary) {
+                    el.innerHTML =
+                        '<div class="no-data">No summary data available</div>';
+                    return;
+                }
+
+                const succeeded = testData.summary.frames_succeeded || 0;
+                const failed = testData.summary.frames_failed || 0;
+
+                if (succeeded === 0 && failed === 0) {
+                    el.innerHTML = '<div class="no-data">No status data</div>';
+                    return;
+                }
+
+                const data = {
+                    categories: ["Status"],
+                    series: [
+                        { name: "Success", data: succeeded },
+                        { name: "Failed", data: failed },
+                    ],
+                };
+
+                const options = {
+                    chart: { width: "auto", height: 300 },
+                    series: {
+                        radiusRange: {
+                            inner: "40%",
+                            outer: "90%",
+                        },
+                        dataLabels: {
+                            visible: true,
+                            pieSeriesName: { visible: true },
+                        },
+                    },
+                    theme: {
+                        series: {
+                            colors: ["#2ecc71", "#e74c3c"],
+                        },
+                    },
+                    legend: { visible: true },
+                    exportMenu: { visible: false },
+                };
+
+                Chart.pieChart({ el, data, options });
+            }
+
+            function renderThreadChart() {
+                // Only show if we have thread data and multiple threads
+                const threads = {};
+                testData.frames.forEach((f) => {
+                    const tid = f.thread !== undefined ? f.thread : 0;
+                    threads[tid] = (threads[tid] || 0) + 1;
+                });
+
+                const threadIds = Object.keys(threads)
+                    .map(Number)
+                    .sort((a, b) => a - b);
+                if (threadIds.length <= 1) {
+                    // Single thread, hide the section
+                    return;
+                }
+
+                // Show the section
+                document.getElementById("thread-section").style.display =
+                    "block";
+
+                const el = document.getElementById("thread-chart");
+                el.innerHTML = "";
+
+                const labels = threadIds.map((t) => `Thread ${t}`);
+                const counts = threadIds.map((t) => threads[t]);
+
+                const data = {
+                    categories: labels,
+                    series: [
+                        {
+                            name: "Frames",
+                            data: counts,
+                        },
+                    ],
+                };
+
+                const options = {
+                    chart: { width: "auto", height: 300 },
+                    xAxis: { title: "Thread" },
+                    yAxis: { title: "Frame Count" },
+                    series: { barWidth: 40 },
+                    theme: {
+                        series: {
+                            colors: ["#9b59b6"],
+                        },
+                    },
+                    legend: { visible: false },
+                    exportMenu: { visible: false },
+                };
+
+                Chart.barChart({ el, data, options });
+            }
+
+            // Export to PDF
+            function exportPDF() {
+                const element = document.getElementById("report-content");
+                const opt = {
+                    margin: 10,
+                    filename: `vframetest-report-${new Date().toISOString().split("T")[0]}.pdf`,
+                    image: { type: "jpeg", quality: 0.98 },
+                    html2canvas: { scale: 2, useCORS: true },
+                    jsPDF: {
+                        unit: "mm",
+                        format: "a4",
+                        orientation: "portrait",
+                    },
+                };
+
+                // Hide export button during PDF generation
+                const btn = document.querySelector(".btn-export");
+                btn.style.display = "none";
+
+                html2pdf()
+                    .set(opt)
+                    .from(element)
+                    .save()
+                    .then(() => {
+                        btn.style.display = "inline-flex";
+                    });
+            }
+
+            // Initialize
+            document.addEventListener("DOMContentLoaded", loadTestData);
+        </script>
+    </body>
+</html>

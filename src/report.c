@@ -234,7 +234,7 @@ void print_results(const char *tcase, const opts_t *opts,
 	printf(" B/s   : %lf\n",
 	       (double)res->bytes_written * SEC_IN_NS / res->time_taken_ns);
 	printf(" MiB/s : %lf\n", (double)res->bytes_written * SEC_IN_NS /
-					 (1024 * 1024) / res->time_taken_ns);
+					 (1024.0 * 1024.0) / res->time_taken_ns);
 	print_frames_stat(res, opts);
 	print_frame_times(res, opts);
 	/* Phase 2: Print error statistics */
@@ -276,7 +276,7 @@ void print_results_csv(const char *tcase, const opts_t *opts,
 	       (double)res->frames_written * SEC_IN_NS / res->time_taken_ns);
 	printf("%.9lf,",
 	       (double)res->bytes_written * SEC_IN_NS / res->time_taken_ns);
-	printf("%.9lf,", (double)res->bytes_written * SEC_IN_NS / (1024 * 1024) /
+	printf("%.9lf,", (double)res->bytes_written * SEC_IN_NS / (1024.0 * 1024.0) /
 			       res->time_taken_ns);
 	print_frames_stat(res, opts);
 	/* Phase 2: Add filesystem, success rate, and I/O stats */
@@ -337,7 +337,7 @@ void print_results_json(const char *tcase, const opts_t *opts,
 	printf("      \"bps\": %.9lf,\n",
 	       (double)res->bytes_written * SEC_IN_NS / res->time_taken_ns);
 	printf("      \"mibps\": %.9lf,\n",
-	       (double)res->bytes_written * SEC_IN_NS / (1024 * 1024) /
+	       (double)res->bytes_written * SEC_IN_NS / (1024.0 * 1024.0) /
 	       res->time_taken_ns);
 
 	/* Completion times */

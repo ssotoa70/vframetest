@@ -31,7 +31,10 @@
 #include <time.h>
 #include <unistd.h>
 #include <sys/stat.h>
+#include <fcntl.h>
 #include <errno.h>
+#include <dirent.h>
+#include <limits.h>
 
 #include "profile.h"
 #include "frame.h"
@@ -41,6 +44,11 @@
 #include "report.h"
 #include "platform.h"
 #include "tui.h"
+#include "tty.h"
+#include "tui_state.h"
+#include "tui_input.h"
+#include "tui_render.h"
+#include "screen.h"
 
 /* Shared progress state for TUI updates (volatile for thread safety) */
 typedef struct tui_progress_t {
@@ -748,6 +756,8 @@ static struct option long_opts[] = {
 	{ "frametimes", no_argument, 0, 0 },
 	{ "histogram", no_argument, 0, 0 },
 	{ "tui", no_argument, 0, 0 },
+	{ "interactive", no_argument, 0, 'i' },
+	{ "history-size", required_argument, 0, 0 },
 	{ "version", no_argument, 0, 'V' },
 	{ "help", no_argument, 0, 'h' },
 	{ 0, 0, 0, 0 },
@@ -774,6 +784,8 @@ static struct long_opt_desc long_opt_descs[] = {
 	{ "frametimes", "Show detailed timings of every frames in CSV format" },
 	{ "histogram", "Show histogram of completion times at the end" },
 	{ "tui", "Show real-time TUI dashboard during test" },
+	{ "interactive", "Launch interactive TTY mode with config menu" },
+	{ "history-size", "Frame history depth for interactive mode (default 10000)" },
 	{ "version", "Display version information" },
 	{ "help", "Display this help" },
 	{ 0, 0 },
@@ -818,6 +830,627 @@ void usage(const char *name)
 }
 #undef DESC_POS
 
+/* ─────────────────────────────────────────────────────────────────────────────
+ * Interactive TTY mode
+ * ───────────────────────────────────────────────────────────────────────────── */
+
+/* Create test directory if it doesn't exist */
+static int ensure_test_directory(const char *path)
+{
+	struct stat st;
+	
+	if (stat(path, &st) == 0) {
+		/* Path exists - check if it's a directory */
+		if (S_ISDIR(st.st_mode)) {
+			return 0; /* Directory exists */
+		}
+		return -1; /* Exists but not a directory */
+	}
+	
+	/* Directory doesn't exist - create it */
+	if (mkdir(path, 0755) == 0) {
+		return 0;
+	}
+	
+	return -1;
+}
+
+/* Count test files and calculate total size */
+static int count_test_files(const char *path, size_t *total_bytes)
+{
+	DIR *dir;
+	struct dirent *entry;
+	char filepath[PATH_MAX];
+	struct stat st;
+	int count = 0;
+	
+	if (total_bytes)
+		*total_bytes = 0;
+	
+	dir = opendir(path);
+	if (!dir) {
+		return -1;
+	}
+	
+	while ((entry = readdir(dir)) != NULL) {
+		/* Only count frame*.tst files */
+		if (strncmp(entry->d_name, "frame", 5) == 0 &&
+		    strstr(entry->d_name, ".tst") != NULL) {
+			count++;
+			if (total_bytes) {
+				snprintf(filepath, sizeof(filepath), "%s/%s", path, entry->d_name);
+				if (stat(filepath, &st) == 0) {
+					*total_bytes += st.st_size;
+				}
+			}
+		}
+	}
+	
+	closedir(dir);
+	return count;
+}
+
+/* Clean up test files from directory (removes frame*.tst files only) */
+static int cleanup_test_files(const char *path)
+{
+	DIR *dir;
+	struct dirent *entry;
+	char filepath[PATH_MAX];
+	int count = 0;
+	
+	dir = opendir(path);
+	if (!dir) {
+		return -1;
+	}
+	
+	while ((entry = readdir(dir)) != NULL) {
+		/* Only remove frame*.tst files */
+		if (strncmp(entry->d_name, "frame", 5) == 0 &&
+		    strstr(entry->d_name, ".tst") != NULL) {
+			snprintf(filepath, sizeof(filepath), "%s/%s", path, entry->d_name);
+			if (unlink(filepath) == 0) {
+				count++;
+			}
+		}
+	}
+	
+	closedir(dir);
+	return count;
+}
+
+/* Open dashboard in browser via local HTTP server (needed for fetch to work) */
+static int open_dashboard(void)
+{
+	/* Start Python HTTP server in background and open browser */
+	/* Server runs on port 8765 to avoid conflicts */
+#if defined(__APPLE__)
+	return system("cd report-dashboard && "
+	              "(python3 -m http.server 8765 &) && "
+	              "sleep 0.5 && "
+	              "open http://localhost:8765 2>/dev/null");
+#elif defined(_WIN32)
+	return system("cd report-dashboard && "
+	              "start /B python -m http.server 8765 && "
+	              "timeout /t 1 && "
+	              "start http://localhost:8765");
+#else
+	/* Linux */
+	int ret = system("cd report-dashboard && "
+	                 "(python3 -m http.server 8765 &) && "
+	                 "sleep 0.5 && "
+	                 "xdg-open http://localhost:8765 2>/dev/null");
+	if (ret != 0) {
+		ret = system("cd report-dashboard && "
+		             "(python3 -m http.server 8765 &) && "
+		             "sleep 0.5 && "
+		             "sensible-browser http://localhost:8765 2>/dev/null");
+	}
+	return ret;
+#endif
+}
+
+/* Compare function for qsort */
+static int compare_uint64(const void *a, const void *b)
+{
+	uint64_t va = *(const uint64_t *)a;
+	uint64_t vb = *(const uint64_t *)b;
+	if (va < vb) return -1;
+	if (va > vb) return 1;
+	return 0;
+}
+
+/* Export test results to JSON for dashboard visualization */
+static int export_test_results_json(const char *filepath, 
+                                    tui_app_state_t *state,
+                                    tui_metrics_t *metrics,
+                                    const opts_t *test_opts)
+{
+	FILE *fp = fopen(filepath, "w");
+	if (!fp) {
+		return -1;
+	}
+	
+	size_t frame_count = tui_history_count(state);
+	
+	/* Build array of durations for percentile calculation */
+	uint64_t *durations = NULL;
+	size_t valid_count = 0;
+	uint64_t total_ns = 0;
+	uint64_t min_ns = UINT64_MAX;
+	uint64_t max_ns = 0;
+	
+	if (frame_count > 0) {
+		durations = malloc(frame_count * sizeof(uint64_t));
+		if (durations) {
+			for (size_t i = 0; i < frame_count; i++) {
+				const tui_frame_record_t *f = tui_history_get(state, i);
+				if (f && f->duration_ns > 0) {
+					durations[valid_count++] = f->duration_ns;
+					total_ns += f->duration_ns;
+					if (f->duration_ns < min_ns) min_ns = f->duration_ns;
+					if (f->duration_ns > max_ns) max_ns = f->duration_ns;
+				}
+			}
+			/* Sort for percentile calculation */
+			if (valid_count > 0) {
+				qsort(durations, valid_count, sizeof(uint64_t), compare_uint64);
+			}
+		}
+	}
+	
+	/* Calculate percentiles */
+	uint64_t p50_ns = 0, p95_ns = 0, p99_ns = 0;
+	if (durations && valid_count > 0) {
+		p50_ns = durations[(size_t)(valid_count * 0.50)];
+		p95_ns = durations[(size_t)(valid_count * 0.95)];
+		p99_ns = durations[valid_count > 1 ? (size_t)(valid_count * 0.99) : valid_count - 1];
+	}
+	
+	double avg_ms = valid_count > 0 ? (double)total_ns / valid_count / 1e6 : 0;
+	double elapsed_sec = (double)metrics->elapsed_ns / 1e9;
+	double throughput = elapsed_sec > 0 ? 
+	                    ((double)metrics->bytes_written / (1024.0 * 1024.0)) / elapsed_sec : 0;
+	
+	/* Write JSON header */
+	fprintf(fp, "{\n");
+	
+	/* Config section */
+	fprintf(fp, "  \"config\": {\n");
+	fprintf(fp, "    \"profile\": \"%s\",\n", test_opts->profile.name);
+	fprintf(fp, "    \"path\": \"%s\",\n", test_opts->path);
+	fprintf(fp, "    \"threads\": %zu,\n", test_opts->threads);
+	fprintf(fp, "    \"frames\": %zu,\n", test_opts->frames);
+	fprintf(fp, "    \"filesystem\": \"%s\"\n", 
+	        metrics->fs_type == FILESYSTEM_SMB ? "SMB" :
+	        metrics->fs_type == FILESYSTEM_NFS ? "NFS" : "LOCAL");
+	fprintf(fp, "  },\n");
+	
+	/* Summary section */
+	fprintf(fp, "  \"summary\": {\n");
+	fprintf(fp, "    \"total_frames\": %zu,\n", metrics->frames_completed);
+	fprintf(fp, "    \"frames_succeeded\": %zu,\n", metrics->frames_succeeded);
+	fprintf(fp, "    \"frames_failed\": %zu,\n", metrics->frames_failed);
+	fprintf(fp, "    \"throughput_mibs\": %.2f,\n", throughput);
+	fprintf(fp, "    \"duration_sec\": %.2f,\n", elapsed_sec);
+	fprintf(fp, "    \"io_mode\": \"%s\"\n", 
+	        metrics->current_io_mode == IO_MODE_DIRECT ? "Direct" : "Buffered");
+	fprintf(fp, "  },\n");
+	
+	/* Latency section */
+	fprintf(fp, "  \"latency\": {\n");
+	fprintf(fp, "    \"min_ms\": %.4f,\n", min_ns == UINT64_MAX ? 0.0 : (double)min_ns / 1e6);
+	fprintf(fp, "    \"max_ms\": %.4f,\n", (double)max_ns / 1e6);
+	fprintf(fp, "    \"avg_ms\": %.4f,\n", avg_ms);
+	fprintf(fp, "    \"p50_ms\": %.4f,\n", (double)p50_ns / 1e6);
+	fprintf(fp, "    \"p95_ms\": %.4f,\n", (double)p95_ns / 1e6);
+	fprintf(fp, "    \"p99_ms\": %.4f\n", (double)p99_ns / 1e6);
+	fprintf(fp, "  },\n");
+	
+	/* Frames array - include bytes and thread_id for detailed analysis */
+	fprintf(fp, "  \"frames\": [\n");
+	for (size_t i = 0; i < frame_count; i++) {
+		const tui_frame_record_t *f = tui_history_get(state, i);
+		if (!f) continue;
+		
+		fprintf(fp, "    {\"frame_num\": %zu, \"duration_ms\": %.4f, \"bytes\": %zu, \"io_mode\": \"%s\", \"success\": %s, \"thread\": %d}%s\n",
+		        f->frame_num,
+		        (double)f->duration_ns / 1e6,
+		        f->bytes,
+		        f->io_mode == IO_MODE_DIRECT ? "direct" : "buffered",
+		        f->success ? "true" : "false",
+		        f->thread_id,
+		        i < frame_count - 1 ? "," : "");
+	}
+	fprintf(fp, "  ],\n");
+	
+	/* Throughput samples - calculate throughput in time windows */
+	fprintf(fp, "  \"throughput_samples\": [\n");
+	if (frame_count > 0) {
+		#define THROUGHPUT_SAMPLES 50
+		size_t window_size = frame_count / THROUGHPUT_SAMPLES;
+		if (window_size < 1) window_size = 1;
+		
+		for (size_t start = 0; start < frame_count; start += window_size) {
+			size_t end = start + window_size;
+			if (end > frame_count) end = frame_count;
+			
+			size_t window_bytes = 0;
+			uint64_t window_duration_ns = 0;
+			size_t window_frame_start = 0;
+			
+			for (size_t j = start; j < end; j++) {
+				const tui_frame_record_t *f = tui_history_get(state, j);
+				if (f) {
+					window_bytes += f->bytes;
+					window_duration_ns += f->duration_ns;
+					if (j == start) window_frame_start = f->frame_num;
+				}
+			}
+			
+			double window_throughput_mibs = 0;
+			if (window_duration_ns > 0) {
+				double secs = (double)window_duration_ns / 1e9;
+				window_throughput_mibs = ((double)window_bytes / (1024.0 * 1024.0)) / secs;
+			}
+			
+			fprintf(fp, "    {\"frame\": %zu, \"throughput_mibs\": %.2f}%s\n",
+			        window_frame_start,
+			        window_throughput_mibs,
+			        (start + window_size >= frame_count) ? "" : ",");
+		}
+		#undef THROUGHPUT_SAMPLES
+	}
+	fprintf(fp, "  ],\n");
+	
+	/* Timestamp */
+	time_t now = time(NULL);
+	char timestamp[64];
+	strftime(timestamp, sizeof(timestamp), "%Y-%m-%dT%H:%M:%SZ", gmtime(&now));
+	fprintf(fp, "  \"timestamp\": \"%s\"\n", timestamp);
+	
+	fprintf(fp, "}\n");
+	
+	/* Cleanup */
+	if (durations) {
+		free(durations);
+	}
+	
+	fclose(fp);
+	return 0;
+}
+
+/* Show cleanup prompt and wait for user response */
+static int show_cleanup_prompt(tui_app_state_t *state, int file_count, size_t total_bytes)
+{
+	screen_t scr;
+	int width = state->term_width > 80 ? 80 : state->term_width;
+	int height = state->term_height > 24 ? 24 : state->term_height;
+	
+	screen_init(&scr, width, height);
+	
+	/* Draw box */
+	screen_box(&scr, 0, 0, width, height);
+	
+	/* Title */
+	int row = 2;
+	screen_move(&scr, row++, (width - 20) / 2);
+	screen_print(&scr, "=== Test Complete ===");
+	row++;
+	
+	/* File info */
+	char buf[128];
+	double size_gb = (double)total_bytes / (1024.0 * 1024.0 * 1024.0);
+	snprintf(buf, sizeof(buf), "%d test files (%.1f GB)", file_count, size_gb);
+	screen_move(&scr, row++, (width - strlen(buf)) / 2);
+	screen_print(&scr, buf);
+	row++;
+	
+	/* Prompt */
+	screen_move(&scr, row++, (width - 30) / 2);
+	screen_print(&scr, "Delete test files?");
+	row++;
+	
+	screen_move(&scr, row++, (width - 30) / 2);
+	screen_print(&scr, "[Y] Yes   [N] No   [Q] Quit");
+	
+	screen_render(&scr);
+	
+	/* Wait for response */
+	while (1) {
+		char c = 0;
+		if (read(STDIN_FILENO, &c, 1) == 1) {
+			if (c == 'y' || c == 'Y') {
+				return 1;  /* Delete files */
+			} else if (c == 'n' || c == 'N') {
+				return 0;  /* Keep files */
+			} else if (c == 'q' || c == 'Q') {
+				return -1; /* Quit */
+			}
+		}
+	}
+}
+
+static int run_interactive(opts_t *opts)
+{
+	tui_app_state_t state;
+	tui_metrics_t metrics;
+	int result = 0;
+	
+	/* Check terminal support */
+	if (!tty_is_supported()) {
+		fprintf(stderr, "ERROR: Interactive mode requires a terminal\n");
+		return 1;
+	}
+	
+	/* Initialize state */
+	size_t history_size = opts->history_size > 0 ? opts->history_size : TUI_HISTORY_DEFAULT;
+	if (tui_state_init(&state, history_size) != 0) {
+		fprintf(stderr, "ERROR: Failed to initialize interactive state\n");
+		return 1;
+	}
+	
+	/* Initialize metrics (empty for now) */
+	memset(&metrics, 0, sizeof(metrics));
+	
+	/* Initialize terminal */
+	if (tty_init() != 0) {
+		fprintf(stderr, "ERROR: Failed to initialize terminal\n");
+		tui_state_cleanup(&state);
+		return 1;
+	}
+	
+	/* Main event loop */
+	while (!tui_should_quit(&state)) {
+		/* Check for resize */
+		if (tty_was_resized()) {
+			tty_size_t size = tty_get_size();
+			tui_state_set_size(&state, size.width, size.height);
+		}
+		
+		/* Render if needed */
+		if (state.needs_redraw) {
+			tui_render_screen(&state, 
+			                  state.run_state != TUI_STATE_IDLE ? &metrics : NULL);
+		}
+		
+		/* Process input (100ms timeout for responsive UI) */
+		tui_input_process(&state, 100);
+		
+		/* Check if test was requested */
+		if (tui_config_test_requested(&state)) {
+			/* Convert TUI config to opts */
+			opts_t test_opts;
+			memset(&test_opts, 0, sizeof(test_opts));
+			
+			/* Set path */
+			test_opts.path = state.config.path;
+			
+			/* Validate path */
+			if (!test_opts.path || !test_opts.path[0]) {
+				state.run_state = TUI_STATE_IDLE;
+				state.current_view = TUI_VIEW_CONFIG;
+				state.needs_redraw = 1;
+				continue;
+			}
+			
+			/* Create test directory if it doesn't exist */
+			if (ensure_test_directory(test_opts.path) != 0) {
+				state.run_state = TUI_STATE_IDLE;
+				state.current_view = TUI_VIEW_CONFIG;
+				state.needs_redraw = 1;
+				continue;
+			}
+			
+			/* Set profile based on TUI selection */
+			switch (state.config.profile) {
+			case TUI_PROFILE_SD:
+				test_opts.profile = profile_get_by_name("SD-24bit");
+				break;
+			case TUI_PROFILE_HD:
+				test_opts.profile = profile_get_by_name("HD-24bit");
+				break;
+			case TUI_PROFILE_FULLHD:
+				test_opts.profile = profile_get_by_name("FULLHD-24bit");
+				break;
+			case TUI_PROFILE_2K:
+				test_opts.profile = profile_get_by_name("2K-24bit");
+				break;
+			case TUI_PROFILE_4K:
+				test_opts.profile = profile_get_by_name("4K-24bit");
+				break;
+			case TUI_PROFILE_8K:
+				test_opts.profile = profile_get_by_name("8K-24bit");
+				break;
+			default:
+				test_opts.profile = profile_get_by_name("FULLHD-24bit");
+			}
+			
+			/* Set other parameters */
+			test_opts.threads = state.config.threads > 0 ? state.config.threads : 1;
+			test_opts.frames = state.config.frames > 0 ? state.config.frames : 100;
+			test_opts.fps = state.config.fps;
+			test_opts.header_size = state.config.header_size;
+			
+			/* Set test mode */
+			switch (state.config.test_type) {
+			case TUI_TEST_WRITE:
+				test_opts.mode = TEST_WRITE;
+				break;
+			case TUI_TEST_READ:
+				test_opts.mode = TEST_READ;
+				break;
+			case TUI_TEST_EMPTY:
+				test_opts.mode = TEST_EMPTY;
+				break;
+			default:
+				test_opts.mode = TEST_WRITE;
+			}
+			
+			/* Create frame for test */
+			const platform_t *platform = platform_get();
+			test_opts.profile.header_size = test_opts.header_size;
+			frame_t *frm = frame_gen(platform, test_opts.profile);
+			if (!frm) {
+				state.run_state = TUI_STATE_IDLE;
+				state.needs_redraw = 1;
+				continue;
+			}
+			
+			/* Initialize metrics for display */
+			tui_metrics_init(&metrics, test_opts.profile.name, test_opts.path,
+			                 test_opts.threads, test_opts.frames,
+			                 test_opts.mode == TEST_WRITE ? "write" : "read",
+			                 FILESYSTEM_LOCAL);
+			
+			/* Reset state for new test (clears history from previous runs) */
+			tui_state_reset_for_test(&state);
+			
+			/* Switch to dashboard and mark as running */
+			state.run_state = TUI_STATE_RUNNING;
+			state.current_view = TUI_VIEW_DASHBOARD;
+			state.needs_redraw = 1;
+			
+			/* Set up progress tracking */
+			tui_progress_t progress = {0};
+			
+			/* Start worker threads */
+			size_t frames_per_thread = test_opts.frames / test_opts.threads;
+			thread_info_t *threads = platform->malloc(sizeof(*threads) * test_opts.threads);
+			if (!threads) {
+				frame_destroy(platform, frm);
+				state.run_state = TUI_STATE_IDLE;
+				state.needs_redraw = 1;
+				continue;
+			}
+			
+			uint64_t start_time = timing_start();
+			
+			test_opts.frm = frm;
+			
+			for (size_t i = 0; i < test_opts.threads; i++) {
+				threads[i].platform = platform;
+				threads[i].opts = &test_opts;
+				threads[i].start_frame = i * frames_per_thread;
+				threads[i].frames = (i == test_opts.threads - 1) ? 
+				                    test_opts.frames - threads[i].start_frame : 
+				                    frames_per_thread;
+				threads[i].fps = test_opts.fps;
+				threads[i].tui_progress = &progress;
+				memset(&threads[i].res, 0, sizeof(threads[i].res));
+				
+				if (platform->thread_create(&threads[i].thread, 
+				                            run_write_test_thread_tui, 
+				                            &threads[i])) {
+					/* Thread creation failed */
+					threads[i].thread = 0;
+				}
+			}
+			
+			/* Main loop - update display while test runs */
+			size_t last_frame_count = 0;
+			size_t frame_bytes = frm->size;  /* Cache frame size for history */
+			while (state.run_state == TUI_STATE_RUNNING) {
+				/* Update metrics from progress */
+				size_t current_frames = progress.frames_completed;
+				metrics.frames_completed = current_frames;
+				metrics.bytes_written = progress.bytes_written;
+				metrics.elapsed_ns = timing_elapsed(start_time);
+				metrics.frames_succeeded = current_frames;
+				
+				if (progress.last_frame_time_ns > 0) {
+					/* Update latency stats without incrementing frame count
+					 * (frame count comes directly from progress) */
+					metrics.current_io_mode = progress.last_io_mode;
+					if (progress.last_io_mode == IO_MODE_DIRECT) {
+						metrics.frames_direct_io = current_frames;
+					}
+					
+					/* Add ALL new frames to history since last check */
+					while (last_frame_count < current_frames) {
+						last_frame_count++;
+						tui_frame_record_t rec = {
+							.frame_num = last_frame_count,
+							.start_ns = timing_start(),
+							.duration_ns = progress.last_frame_time_ns,
+							.bytes = frame_bytes,
+							.io_mode = progress.last_io_mode,
+							.success = 1,
+							.thread_id = (int)(last_frame_count % test_opts.threads)
+						};
+						tui_history_add(&state, &rec);
+					}
+				}
+				
+				/* Check if done */
+				if (metrics.frames_completed >= test_opts.frames) {
+					state.run_state = TUI_STATE_COMPLETED;
+				}
+				
+				/* Render */
+				tui_render_screen(&state, &metrics);
+				
+				/* Process input (allow quit/pause) */
+				tui_input_process(&state, 50);
+				
+				/* Check for quit */
+				if (tui_should_quit(&state)) {
+					break;
+				}
+			}
+			
+			/* Wait for threads to finish */
+			for (size_t i = 0; i < test_opts.threads; i++) {
+				if (threads[i].thread) {
+					platform->thread_join(threads[i].thread, NULL);
+					result_free(platform, &threads[i].res);
+				}
+			}
+			
+			platform->free(threads);
+			frame_destroy(platform, frm);
+			
+			/* Final update */
+			metrics.elapsed_ns = timing_elapsed(start_time);
+			state.needs_redraw = 1;
+			
+			/* Export test results to JSON for dashboard */
+			export_test_results_json("report-dashboard/data/test-results.json",
+			                         &state, &metrics, &test_opts);
+			
+			/* Open dashboard in browser if enabled */
+			if (state.config.open_dashboard) {
+				open_dashboard();
+			}
+			
+			/* Handle cleanup based on config */
+			if (state.config.auto_cleanup) {
+				/* Auto-cleanup enabled - delete files silently */
+				cleanup_test_files(test_opts.path);
+			} else {
+				/* Prompt user for cleanup */
+				size_t total_bytes = 0;
+				int file_count = count_test_files(test_opts.path, &total_bytes);
+				if (file_count > 0) {
+					int response = show_cleanup_prompt(&state, file_count, total_bytes);
+					if (response == 1) {
+						cleanup_test_files(test_opts.path);
+					} else if (response == -1) {
+						/* User chose quit */
+						state.run_state = TUI_STATE_QUITTING;
+					}
+				}
+				state.needs_redraw = 1;
+			}
+		}
+	}
+	
+	/* Cleanup */
+	tty_cleanup();
+	tui_state_cleanup(&state);
+	
+	return result;
+}
+
 int main(int argc, char **argv)
 {
 	opts_t opts = { 0 };
@@ -833,7 +1466,7 @@ int main(int argc, char **argv)
 	opts.frames = 1800;
 	opts.header_size = 65536;
 	while (1) {
-		c = getopt_long(argc, argv, "rw:elt:n:f:s:z:vmhVc", long_opts,
+		c = getopt_long(argc, argv, "irw:elt:n:f:s:z:vmhVc", long_opts,
 				&opt_index);
 		if (c == -1)
 			break;
@@ -854,6 +1487,14 @@ int main(int argc, char **argv)
 				if (opt_parse_header_size(&opts, optarg))
 					goto invalid_long;
 			}
+			if (!strcmp(long_opts[opt_index].name, "interactive"))
+				opts.interactive = 1;
+			if (!strcmp(long_opts[opt_index].name, "history-size")) {
+				opts.history_size = (size_t)atol(optarg);
+			}
+			break;
+		case 'i':
+			opts.interactive = 1;
 			break;
 		case 'h':
 			usage(argv[0]);
@@ -934,6 +1575,11 @@ int main(int argc, char **argv)
 		usage(argv[0]);
 		return 1;
 	}
+	/* Interactive mode - launch config menu */
+	if (opts.interactive) {
+		return run_interactive(&opts);
+	}
+
 	if (!opts.path) {
 		usage(argv[0]);
 		return 1;

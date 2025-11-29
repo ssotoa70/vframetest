@@ -32,7 +32,6 @@
 #endif
 
 #include "tui.h"
-#include "timing.h"
 
 /* Sparkline characters representing 8 intensity levels */
 const char *TUI_SPARK_CHARS[8] = {

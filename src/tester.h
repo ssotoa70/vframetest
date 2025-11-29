@@ -107,7 +107,7 @@ static inline int test_result_aggregate(test_result_t *dst,
 
 	frm = (dst->frames_written + src->frames_written);
 	if (frm && src->frames_written && src->completion) {
-		tmp = realloc(dst->completion, sizeof(*tmp) * frm);
+		tmp = (test_completion_t *)realloc(dst->completion, sizeof(*tmp) * frm);
 		if (tmp) {
 			memcpy(tmp + dst->frames_written, src->completion,
 			       sizeof(*tmp) * src->frames_written);

@@ -21,11 +21,22 @@
 #ifndef FRAMETEST_FRAMETEST_H
 #define FRAMETEST_FRAMETEST_H
 
+/* Version fallbacks for IDE/clangd (actual values set via -D flags) */
+#ifndef MAJOR
+#define MAJOR 0
+#endif
+#ifndef MINOR
+#define MINOR 0
+#endif
+#ifndef PATCH
+#define PATCH 0
+#endif
+
 #include "profile.h"
 #include "frame.h"
 
 #define SEC_IN_NS 1000000000UL
-#define SEC_IN_MS (SEC_IN_NS / 1000UL)
+#define SEC_IN_MS (SEC_IN_NS / 1000.0)
 
 enum TestMode {
 	TEST_WRITE = 1 << 0,
@@ -60,6 +71,8 @@ typedef struct opts_t {
 	unsigned int histogram : 1;
 	unsigned int single_file : 1;
 	unsigned int tui : 1;
+	unsigned int interactive : 1;
+	size_t history_size;
 } opts_t;
 
 /* I/O mode enumeration */
