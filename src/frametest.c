@@ -18,11 +18,20 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 
+// Enable POSIX timers (clock_gettime, struct timespec, CLOCK_MONOTONIC)
+// when compiling on Linux with strict C99 (as in CI).
+#if defined(__linux__) && !defined(_POSIX_C_SOURCE)
+#define _POSIX_C_SOURCE 200809L
+#endif
+
 #include <getopt.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <unistd.h>
+#include <sys/stat.h>
+#include <errno.h>
 
 #include "profile.h"
 #include "frame.h"
@@ -158,14 +167,14 @@ int run_test_threads(const platform_t *platform, const char *tst,
 
 	start = timing_start();
 	for (i = 0; i < opts->threads; i++) {
-		int res;
+		int thread_res;
 
 		threads[i].id = i;
 		threads[i].platform = platform;
 		threads[i].opts = opts;
-		res = platform->thread_create(&threads[i].thread, tfunc,
+		thread_res = platform->thread_create(&threads[i].thread, tfunc,
 					      (void *)&threads[i]);
-		if (res) {
+		if (thread_res) {
 			size_t j;
 			void *ret;
 
@@ -218,6 +227,18 @@ int run_test_threads(const platform_t *platform, const char *tst,
 				fprintf(stdout, "WARNING: Test path is on a remote filesystem\n");
 				fprintf(stdout, "Direct I/O may not be available. Results may not be accurate.\n");
 			}
+
+			/* Phase 2: Display I/O fallback statistics */
+			if (tres.frames_direct_io > 0 || tres.frames_buffered_io > 0) {
+				fprintf(stdout, "\n--- Phase 2: I/O Mode Statistics ---\n");
+				fprintf(stdout, "Frames with Direct I/O: %d\n", tres.frames_direct_io);
+				fprintf(stdout, "Frames with Buffered I/O (fallback): %d\n", tres.frames_buffered_io);
+				fprintf(stdout, "Direct I/O success rate: %.2f%%\n", tres.direct_io_success_rate);
+				if (tres.fallback_count > 0) {
+					fprintf(stdout, "Fallback events: %d\n", tres.fallback_count);
+				}
+			}
+
 			if (opts->histogram)
 				print_histogram(&tres);
 		}
@@ -538,7 +559,9 @@ int main(int argc, char **argv)
 	int c = 0;
 	int opt_index = 0;
 
-	srand(time(NULL));
+	struct timespec ts;
+	clock_gettime(CLOCK_MONOTONIC, &ts);
+	srand((unsigned)(ts.tv_sec ^ ts.tv_nsec ^ getpid()));
 	setvbuf(stdout, NULL, _IONBF, 0);
 	setvbuf(stderr, NULL, _IONBF, 0);
 	opts.threads = 1;
@@ -646,6 +669,18 @@ int main(int argc, char **argv)
 	}
 	if (!opts.path) {
 		usage(argv[0]);
+		return 1;
+	}
+
+	/* Validate path exists and is accessible */
+	struct stat path_stat;
+	if (stat(opts.path, &path_stat) != 0) {
+		fprintf(stderr, "ERROR: Cannot access path '%s': %s\n",
+		        opts.path, strerror(errno));
+		return 1;
+	}
+	if (!opts.single_file && !S_ISDIR(path_stat.st_mode)) {
+		fprintf(stderr, "ERROR: Path '%s' is not a directory\n", opts.path);
 		return 1;
 	}
 

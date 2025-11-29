@@ -283,6 +283,8 @@ void test_ignore_printf(int val)
 	ignore_printf = val;
 }
 
+/* GNU ld wrapper functions (Linux only) */
+#ifdef __linux__
 int __real_puts(const char *s);
 int __wrap_puts(const char *s)
 {
@@ -308,3 +310,18 @@ int __wrap_printf(const char *fmt, ...)
 	va_start(ap, fmt);
 	return vprintf(fmt, ap);
 }
+#else
+/* macOS/other platforms: direct implementations */
+int puts(const char *s);
+int putchar(int c);
+
+void test_printf_stub(const char *fmt, ...)
+{
+	va_list ap;
+	if (!ignore_printf) {
+		va_start(ap, fmt);
+		vprintf(fmt, ap);
+		va_end(ap);
+	}
+}
+#endif

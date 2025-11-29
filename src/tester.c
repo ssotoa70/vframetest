@@ -26,6 +26,7 @@
 #endif
 #endif
 #include <limits.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <errno.h>
 #include <string.h>
@@ -64,11 +65,12 @@ static inline void record_error(test_result_t *result, int errno_val,
 static inline size_t tester_frame_write(const platform_t *platform,
 					const char *path, frame_t *frame,
 					size_t num, test_files_t files,
-					test_completion_t *comp)
+					test_completion_t *comp, int is_remote_fs)
 {
 	char name[PATH_MAX + 1];
 	size_t ret;
 	platform_handle_t f;
+	io_mode_t io_mode = IO_MODE_UNKNOWN;
 
 	switch (files) {
 	case TEST_FILES_MULTIPLE:
@@ -83,10 +85,34 @@ static inline size_t tester_frame_write(const platform_t *platform,
 		return 1;
 	}
 
-	f = platform->open(name,
-			   PLATFORM_OPEN_CREATE | PLATFORM_OPEN_WRITE |
-				   PLATFORM_OPEN_DIRECT,
-			   0666);
+	/* Phase 3: Skip Direct I/O on remote filesystems */
+	if (is_remote_fs) {
+		/* Use buffered I/O directly for remote filesystems */
+		f = platform->open(name,
+				   PLATFORM_OPEN_CREATE | PLATFORM_OPEN_WRITE,
+				   0666);
+		if (f > 0) {
+			io_mode = IO_MODE_BUFFERED;
+		}
+	} else {
+		/* Phase 2: Try Direct I/O first, fall back to buffered if needed */
+		f = platform->open(name,
+				   PLATFORM_OPEN_CREATE | PLATFORM_OPEN_WRITE |
+					   PLATFORM_OPEN_DIRECT,
+				   0666);
+
+		if (f > 0) {
+			io_mode = IO_MODE_DIRECT;
+		} else {
+			/* Fallback: Retry without Direct I/O flag */
+			f = platform->open(name,
+					   PLATFORM_OPEN_CREATE | PLATFORM_OPEN_WRITE,
+					   0666);
+			if (f > 0) {
+				io_mode = IO_MODE_BUFFERED;
+			}
+		}
+	}
 
 	if (f <= 0)
 		return 1;
@@ -94,8 +120,10 @@ static inline size_t tester_frame_write(const platform_t *platform,
 	if (files == TEST_FILES_SINGLE) {
 		long pos =
 			platform->seek(f, num * frame->size, PLATFORM_SEEK_SET);
-		if (pos < 0)
+		if (pos < 0) {
+			platform->close(f);
 			return 1;
+		}
 	}
 
 	comp->open = timing_start();
@@ -106,6 +134,9 @@ static inline size_t tester_frame_write(const platform_t *platform,
 	platform->close(f);
 	comp->close = timing_start();
 
+	/* Track which I/O mode was used */
+	comp->io_mode = io_mode;
+
 	/* Faking the output! */
 	if (!ret && !frame->size)
 		return 1;
@@ -115,11 +146,12 @@ static inline size_t tester_frame_write(const platform_t *platform,
 static inline size_t tester_frame_read(const platform_t *platform,
 				       const char *path, frame_t *frame,
 				       size_t num, test_files_t files,
-				       test_completion_t *comp)
+				       test_completion_t *comp, int is_remote_fs)
 {
 	char name[PATH_MAX + 1];
 	size_t ret;
 	platform_handle_t f;
+	io_mode_t io_mode = IO_MODE_UNKNOWN;
 
 	switch (files) {
 	case TEST_FILES_MULTIPLE:
@@ -134,16 +166,38 @@ static inline size_t tester_frame_read(const platform_t *platform,
 		return 1;
 	}
 
-	f = platform->open(name, PLATFORM_OPEN_READ | PLATFORM_OPEN_DIRECT,
-			   0666);
+	/* Phase 3: Skip Direct I/O on remote filesystems */
+	if (is_remote_fs) {
+		/* Use buffered I/O directly for remote filesystems */
+		f = platform->open(name, PLATFORM_OPEN_READ, 0666);
+		if (f > 0) {
+			io_mode = IO_MODE_BUFFERED;
+		}
+	} else {
+		/* Phase 2: Try Direct I/O first, fall back to buffered if needed */
+		f = platform->open(name, PLATFORM_OPEN_READ | PLATFORM_OPEN_DIRECT,
+				   0666);
+		if (f > 0) {
+			io_mode = IO_MODE_DIRECT;
+		} else {
+			/* Fallback: Retry without Direct I/O flag */
+			f = platform->open(name, PLATFORM_OPEN_READ, 0666);
+			if (f > 0) {
+				io_mode = IO_MODE_BUFFERED;
+			}
+		}
+	}
+
 	if (f <= 0)
 		return 0;
 
 	if (files == TEST_FILES_SINGLE) {
 		long pos =
 			platform->seek(f, num * frame->size, PLATFORM_SEEK_SET);
-		if (pos < 0)
+		if (pos < 0) {
+			platform->close(f);
 			return 1;
+		}
 	}
 
 	comp->open = timing_start();
@@ -153,6 +207,9 @@ static inline size_t tester_frame_read(const platform_t *platform,
 
 	platform->close(f);
 	comp->close = timing_start();
+
+	/* Track which I/O mode was used */
+	comp->io_mode = io_mode;
 
 	/* Faking the output! */
 	if (!ret && !frame->size)
@@ -211,6 +268,23 @@ test_result_t tester_run_write(const platform_t *platform, const char *path,
 	res.errors = NULL;
 	res.direct_io_available = 1;
 
+	/* Phase 2: Initialize I/O fallback tracking */
+	res.frames_direct_io = 0;
+	res.frames_buffered_io = 0;
+	res.fallback_count = 0;
+	res.direct_io_success_rate = 0.0;
+
+	/* Phase 3: Initialize NFS/SMB optimization and performance tracking */
+	res.filesystem_type = platform_detect_filesystem(path);
+	res.is_remote_filesystem = (res.filesystem_type == FILESYSTEM_NFS ||
+	                            res.filesystem_type == FILESYSTEM_SMB) ? 1 : 0;
+	res.skipped_direct_io_attempt = 0;
+	res.min_frame_time_ns = UINT64_MAX;
+	res.max_frame_time_ns = 0;
+	res.avg_frame_time_ns = 0;
+	res.performance_trend = 0.0;
+	res.network_timeout_ns = platform_get_network_timeout(res.filesystem_type);
+
 	budget = fps ? (SEC_IN_NS / fps) : 0;
 	end_frame = start_frame + frames;
 
@@ -242,16 +316,37 @@ test_result_t tester_run_write(const platform_t *platform, const char *path,
 			break;
 		}
 		if (!tester_frame_write(platform, path, frame, frame_idx, files,
-					&res.completion[i - start_frame])) {
+					&res.completion[i - start_frame], res.is_remote_filesystem)) {
 			/* Phase 1: Record error and continue tracking */
 			res.frames_failed++;
 			record_error(&res, errno, "write", frame_idx, 0);
-			break;
+			/* Phase 2: Continue instead of break to allow test to continue */
+			continue;
 		}
 		res.completion[i - start_frame].frame = timing_start();
 		++res.frames_written;
 		res.frames_succeeded++;
 		res.bytes_written += frame->size;
+
+		/* Phase 2: Track which I/O mode was used */
+		if (res.completion[i - start_frame].io_mode == IO_MODE_DIRECT) {
+			res.frames_direct_io++;
+		} else if (res.completion[i - start_frame].io_mode == IO_MODE_BUFFERED) {
+			res.frames_buffered_io++;
+			res.fallback_count++;
+		}
+
+		/* Phase 3: Track performance metrics */
+		uint64_t frame_time = res.completion[i - start_frame].frame;
+		if (frame_time > 0) {
+			if (frame_time < res.min_frame_time_ns) {
+				res.min_frame_time_ns = frame_time;
+			}
+			if (frame_time > res.max_frame_time_ns) {
+				res.max_frame_time_ns = frame_time;
+			}
+		}
+
 		/* If fps limit is enabled loop until frame budget is gone */
 		if (fps && budget) {
 			uint64_t frame_elapsed = timing_elapsed(frame_start);
@@ -267,6 +362,57 @@ test_result_t tester_run_write(const platform_t *platform, const char *path,
 	if (res.frames_succeeded + res.frames_failed > 0) {
 		res.success_rate_percent = (res.frames_succeeded * 100.0) /
 		                            (res.frames_succeeded + res.frames_failed);
+	}
+
+	/* Phase 2: Calculate Direct I/O success rate */
+	if (res.frames_direct_io + res.frames_buffered_io > 0) {
+		res.direct_io_success_rate = (res.frames_direct_io * 100.0) /
+		                              (res.frames_direct_io + res.frames_buffered_io);
+	}
+
+	/* Phase 3: Calculate performance trend and average frame time */
+	if (res.frames_succeeded > 0 && res.min_frame_time_ns != UINT64_MAX) {
+		/* Calculate average frame time */
+		uint64_t total_frame_time = 0;
+		for (size_t j = 0; j < frames; j++) {
+			if (res.completion[j].frame > 0) {
+				total_frame_time += res.completion[j].frame;
+			}
+		}
+		res.avg_frame_time_ns = (res.frames_succeeded > 0) ?
+		                         (total_frame_time / res.frames_succeeded) : 0;
+
+		/* Calculate performance trend using first half vs second half comparison */
+		if (res.frames_succeeded > 10) {
+			uint64_t first_half_time = 0, second_half_time = 0;
+			int first_half_count = 0, second_half_count = 0;
+			int mid = res.frames_succeeded / 2;
+
+			for (size_t j = 0; j < frames; j++) {
+				if (res.completion[j].frame > 0) {
+					if (first_half_count < mid) {
+						first_half_time += res.completion[j].frame;
+						first_half_count++;
+					} else {
+						second_half_time += res.completion[j].frame;
+						second_half_count++;
+					}
+				}
+			}
+
+			if (first_half_count > 0 && second_half_count > 0) {
+				uint64_t first_avg = first_half_time / first_half_count;
+				uint64_t second_avg = second_half_time / second_half_count;
+
+				if (second_avg < first_avg) {
+					res.performance_trend = 1.0; /* Improving */
+				} else if (second_avg > first_avg) {
+					res.performance_trend = -1.0; /* Degrading */
+				} else {
+					res.performance_trend = 0.0; /* Stable */
+				}
+			}
+		}
 	}
 
 	if (seq)
@@ -295,6 +441,12 @@ test_result_t tester_run_read(const platform_t *platform, const char *path,
 	res.max_errors = 0;
 	res.errors = NULL;
 	res.direct_io_available = 1;
+
+	/* Phase 2: Initialize I/O fallback tracking */
+	res.frames_direct_io = 0;
+	res.frames_buffered_io = 0;
+	res.fallback_count = 0;
+	res.direct_io_success_rate = 0.0;
 
 	budget = fps ? (SEC_IN_NS / fps) : 0;
 	end_frame = start_frame + frames;
@@ -327,16 +479,37 @@ test_result_t tester_run_read(const platform_t *platform, const char *path,
 			break;
 		}
 		if (!tester_frame_read(platform, path, frame, frame_idx, files,
-				       &res.completion[i - start_frame])) {
+					&res.completion[i - start_frame], res.is_remote_filesystem)) {
 			/* Phase 1: Record error and continue tracking */
 			res.frames_failed++;
 			record_error(&res, errno, "read", frame_idx, 0);
-			break;
+			/* Phase 2: Continue instead of break to allow test to continue */
+			continue;
 		}
 		res.completion[i - start_frame].frame = timing_start();
 		++res.frames_written;
 		res.frames_succeeded++;
 		res.bytes_written += frame->size;
+
+		/* Phase 2: Track which I/O mode was used */
+		if (res.completion[i - start_frame].io_mode == IO_MODE_DIRECT) {
+			res.frames_direct_io++;
+		} else if (res.completion[i - start_frame].io_mode == IO_MODE_BUFFERED) {
+			res.frames_buffered_io++;
+			res.fallback_count++;
+		}
+
+		/* Phase 3: Track performance metrics */
+		uint64_t frame_time = res.completion[i - start_frame].frame;
+		if (frame_time > 0) {
+			if (frame_time < res.min_frame_time_ns) {
+				res.min_frame_time_ns = frame_time;
+			}
+			if (frame_time > res.max_frame_time_ns) {
+				res.max_frame_time_ns = frame_time;
+			}
+		}
+
 		/* If fps limit is enabled loop until frame budget is gone */
 		if (fps && budget) {
 			uint64_t frame_elapsed = timing_elapsed(frame_start);
@@ -352,6 +525,57 @@ test_result_t tester_run_read(const platform_t *platform, const char *path,
 	if (res.frames_succeeded + res.frames_failed > 0) {
 		res.success_rate_percent = (res.frames_succeeded * 100.0) /
 		                            (res.frames_succeeded + res.frames_failed);
+	}
+
+	/* Phase 2: Calculate Direct I/O success rate */
+	if (res.frames_direct_io + res.frames_buffered_io > 0) {
+		res.direct_io_success_rate = (res.frames_direct_io * 100.0) /
+		                              (res.frames_direct_io + res.frames_buffered_io);
+	}
+
+	/* Phase 3: Calculate performance trend and average frame time */
+	if (res.frames_succeeded > 0 && res.min_frame_time_ns != UINT64_MAX) {
+		/* Calculate average frame time */
+		uint64_t total_frame_time = 0;
+		for (size_t j = 0; j < frames; j++) {
+			if (res.completion[j].frame > 0) {
+				total_frame_time += res.completion[j].frame;
+			}
+		}
+		res.avg_frame_time_ns = (res.frames_succeeded > 0) ?
+		                         (total_frame_time / res.frames_succeeded) : 0;
+
+		/* Calculate performance trend using first half vs second half comparison */
+		if (res.frames_succeeded > 10) {
+			uint64_t first_half_time = 0, second_half_time = 0;
+			int first_half_count = 0, second_half_count = 0;
+			int mid = res.frames_succeeded / 2;
+
+			for (size_t j = 0; j < frames; j++) {
+				if (res.completion[j].frame > 0) {
+					if (first_half_count < mid) {
+						first_half_time += res.completion[j].frame;
+						first_half_count++;
+					} else {
+						second_half_time += res.completion[j].frame;
+						second_half_count++;
+					}
+				}
+			}
+
+			if (first_half_count > 0 && second_half_count > 0) {
+				uint64_t first_avg = first_half_time / first_half_count;
+				uint64_t second_avg = second_half_time / second_half_count;
+
+				if (second_avg < first_avg) {
+					res.performance_trend = 1.0; /* Improving */
+				} else if (second_avg > first_avg) {
+					res.performance_trend = -1.0; /* Degrading */
+				} else {
+					res.performance_trend = 0.0; /* Stable */
+				}
+			}
+		}
 	}
 
 	if (seq)

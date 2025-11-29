@@ -514,3 +514,24 @@ const char* platform_strerror(int error_code)
 {
 	return strerror(error_code);
 }
+
+/* Phase 3: Get recommended timeout for network filesystems
+ * NFS: 30 second timeout (default)
+ * SMB: 30 second timeout (default)
+ * Local: No timeout (return 0)
+ */
+uint64_t platform_get_network_timeout(int filesystem_type)
+{
+	/* Timeout in nanoseconds: 30 seconds */
+	const uint64_t NETWORK_TIMEOUT_NS = 30000000000UL;
+
+	switch (filesystem_type) {
+	case 1: /* SMB */
+	case 2: /* NFS */
+		return NETWORK_TIMEOUT_NS;
+	case 0: /* LOCAL */
+	case 3: /* OTHER */
+	default:
+		return 0; /* No timeout for local filesystems */
+	}
+}

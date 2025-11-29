@@ -67,6 +67,20 @@ vframetest -w FULLHD-24bit -t 4 -n 100 test-data
 - ✅ **Remote FS Warnings** - Alerts for network storage limitations
 - ✅ **Direct I/O Checking** - Availability detection per platform
 
+### Phase 2: I/O Fallback & Enhanced Reporting
+- ✅ **Graceful I/O Fallback** - Automatic Direct I/O → Buffered I/O fallback
+- ✅ **Per-Frame I/O Tracking** - Track which frames used Direct vs Buffered I/O
+- ✅ **Enhanced Error Reporting** - Error statistics and per-operation breakdown
+- ✅ **CSV/JSON Error Export** - Detailed error data with timestamps
+- ✅ **Fallback Statistics** - Direct I/O success rate and fallback metrics
+
+### Phase 3: NFS/SMB Optimization Detection
+- ✅ **Automatic NFS/SMB Optimization** - Skip Direct I/O on remote filesystems
+- ✅ **Performance Trend Analysis** - Track improving/stable/degrading performance
+- ✅ **Network Timeout Handling** - Configurable timeouts for network filesystems
+- ✅ **Performance Metrics** - Min/max/avg frame times with trend analysis
+- ✅ **Enhanced Output** - CSV and JSON include optimization metrics
+
 ### Professional Infrastructure
 - ✅ **Multi-Platform** - macOS (arm64/x86_64), Linux, Windows (x86_64/i686)
 - ✅ **CI/CD Automation** - GitHub Actions with multi-platform builds
@@ -113,6 +127,7 @@ vframetest -w FULLHD-24bit -t 4 -n 100 test-data
 - [Repository Structure](docs/REPOSITORY_STRUCTURE.md) - File organization
 - [Changelog](docs/CHANGELOG.md) - Version history
 - [Phase 1 Completion](docs/PHASE_1_COMPLETION_REPORT.md) - Technical report
+- [Phase 3 Completion](docs/PHASE_3_COMPLETION_REPORT.md) - NFS/SMB Optimization report
 
 ---
 
@@ -226,12 +241,13 @@ We welcome contributions! See [CONTRIBUTING.md](docs/CONTRIBUTING.md) for:
 | Phase | Status | Features |
 |-------|--------|----------|
 | **Phase 1** | ✅ Complete | Error tracking, filesystem detection, success metrics |
-| **Phase 2** | 🚀 In Progress | Graceful I/O fallback, error export, detailed reports |
-| **Phase 3** | 📋 Planned | NFS/SMB optimization detection, performance analysis |
-| **Future** | 🔮 Vision | Web dashboard, cloud integration, ML anomaly detection |
+| **Phase 2** | ✅ Complete | Graceful I/O fallback, error export, detailed reports |
+| **Phase 3** | ✅ Complete | NFS/SMB optimization detection, performance analysis |
+| **Phase 4** | 🚀 In Development | Web dashboard, real-time metrics, REST API |
+| **Future** | 🔮 Vision | Cloud integration, distributed testing, ML anomaly detection |
 
-Current Version: **25.11.23** (Phase 1 Complete)
-Latest Release: [v25.11.23](https://github.com/ssotoa70/vframetest/releases/tag/v25.11.23)
+Current Version: **25.13.0** (Phase 3 Complete - NFS/SMB Optimization)
+Latest Release: [v25.13.0](https://github.com/ssotoa70/vframetest/releases/tag/v25.13.0)
 
 ---
 
