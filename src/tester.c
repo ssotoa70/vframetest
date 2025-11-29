@@ -582,3 +582,266 @@ test_result_t tester_run_read(const platform_t *platform, const char *path,
 		platform->free(seq);
 	return res;
 }
+
+/* Callback-enabled versions for TUI progress updates */
+
+test_result_t tester_run_write_cb(const platform_t *platform, const char *path,
+                                  frame_t *frame, size_t start_frame,
+                                  size_t frames, size_t fps, test_mode_t mode,
+                                  test_files_t files, tester_progress_cb cb,
+                                  void *cb_ctx)
+{
+	test_result_t res = { 0 };
+	size_t i;
+	size_t budget;
+	size_t end_frame;
+	size_t *seq = NULL;
+
+	res.completion = platform->calloc(frames, sizeof(*res.completion));
+	if (!res.completion)
+		return res;
+
+	res.frames_failed = 0;
+	res.frames_succeeded = 0;
+	res.error_count = 0;
+	res.max_errors = 0;
+	res.errors = NULL;
+	res.direct_io_available = 1;
+	res.frames_direct_io = 0;
+	res.frames_buffered_io = 0;
+	res.fallback_count = 0;
+	res.direct_io_success_rate = 0.0;
+	res.filesystem_type = platform_detect_filesystem(path);
+	res.is_remote_filesystem = (res.filesystem_type == FILESYSTEM_NFS ||
+	                            res.filesystem_type == FILESYSTEM_SMB) ? 1 : 0;
+	res.skipped_direct_io_attempt = 0;
+	res.min_frame_time_ns = UINT64_MAX;
+	res.max_frame_time_ns = 0;
+	res.avg_frame_time_ns = 0;
+	res.performance_trend = 0.0;
+	res.network_timeout_ns = platform_get_network_timeout(res.filesystem_type);
+
+	budget = fps ? (SEC_IN_NS / fps) : 0;
+	end_frame = start_frame + frames;
+
+	if (mode == TEST_MODE_RANDOM) {
+		seq = platform->malloc(sizeof(*seq) * frames);
+		if (!seq)
+			return res;
+		for (i = 0; i < frames; i++)
+			seq[i] = start_frame + i;
+		shuffle_array(seq, frames);
+	}
+
+	for (i = start_frame; i < end_frame; i++) {
+		uint64_t frame_start = timing_start();
+		size_t frame_idx;
+		int success = 0;
+		uint64_t frame_time_ns = 0;
+		io_mode_t io_mode = IO_MODE_UNKNOWN;
+
+		res.completion[i - start_frame].start = frame_start;
+		switch (mode) {
+		case TEST_MODE_REVERSE:
+			frame_idx = end_frame - i + start_frame - 1;
+			break;
+		case TEST_MODE_RANDOM:
+			frame_idx = seq[i - start_frame];
+			break;
+		case TEST_MODE_NORM:
+		default:
+			frame_idx = i;
+			break;
+		}
+
+		if (!tester_frame_write(platform, path, frame, frame_idx, files,
+					&res.completion[i - start_frame], res.is_remote_filesystem)) {
+			res.frames_failed++;
+			record_error(&res, errno, "write", frame_idx, 0);
+			if (cb)
+				cb(cb_ctx, res.frames_written + res.frames_failed, 0, 0, IO_MODE_UNKNOWN, 0);
+			continue;
+		}
+
+		res.completion[i - start_frame].frame = timing_start();
+		++res.frames_written;
+		res.frames_succeeded++;
+		res.bytes_written += frame->size;
+		success = 1;
+		io_mode = res.completion[i - start_frame].io_mode;
+
+		if (io_mode == IO_MODE_DIRECT)
+			res.frames_direct_io++;
+		else if (io_mode == IO_MODE_BUFFERED) {
+			res.frames_buffered_io++;
+			res.fallback_count++;
+		}
+
+		frame_time_ns = timing_elapsed(frame_start);
+		if (frame_time_ns > 0) {
+			if (frame_time_ns < res.min_frame_time_ns)
+				res.min_frame_time_ns = frame_time_ns;
+			if (frame_time_ns > res.max_frame_time_ns)
+				res.max_frame_time_ns = frame_time_ns;
+		}
+
+		if (cb)
+			cb(cb_ctx, res.frames_written + res.frames_failed, frame->size, frame_time_ns, io_mode, success);
+
+		if (fps && budget) {
+			uint64_t frame_elapsed = timing_elapsed(frame_start);
+			while (frame_elapsed < budget) {
+				platform->usleep(100);
+				frame_elapsed = timing_elapsed(frame_start);
+			}
+		}
+	}
+
+	if (res.frames_succeeded + res.frames_failed > 0) {
+		res.success_rate_percent = (res.frames_succeeded * 100.0) /
+		                            (res.frames_succeeded + res.frames_failed);
+	}
+	if (res.frames_direct_io + res.frames_buffered_io > 0) {
+		res.direct_io_success_rate = (res.frames_direct_io * 100.0) /
+		                              (res.frames_direct_io + res.frames_buffered_io);
+	}
+	if (res.frames_succeeded > 0 && res.min_frame_time_ns != UINT64_MAX) {
+		uint64_t total_frame_time = 0;
+		for (size_t j = 0; j < frames; j++) {
+			if (res.completion[j].frame > 0)
+				total_frame_time += res.completion[j].frame;
+		}
+		res.avg_frame_time_ns = (res.frames_succeeded > 0) ?
+		                         (total_frame_time / res.frames_succeeded) : 0;
+	}
+
+	if (seq)
+		platform->free(seq);
+	return res;
+}
+
+test_result_t tester_run_read_cb(const platform_t *platform, const char *path,
+                                 frame_t *frame, size_t start_frame,
+                                 size_t frames, size_t fps, test_mode_t mode,
+                                 test_files_t files, tester_progress_cb cb,
+                                 void *cb_ctx)
+{
+	test_result_t res = { 0 };
+	size_t i;
+	size_t budget;
+	size_t end_frame;
+	size_t *seq = NULL;
+
+	res.completion = platform->calloc(frames, sizeof(*res.completion));
+	if (!res.completion)
+		return res;
+
+	res.frames_failed = 0;
+	res.frames_succeeded = 0;
+	res.error_count = 0;
+	res.max_errors = 0;
+	res.errors = NULL;
+	res.direct_io_available = 1;
+	res.frames_direct_io = 0;
+	res.frames_buffered_io = 0;
+	res.fallback_count = 0;
+	res.direct_io_success_rate = 0.0;
+
+	budget = fps ? (SEC_IN_NS / fps) : 0;
+	end_frame = start_frame + frames;
+
+	if (mode == TEST_MODE_RANDOM) {
+		seq = platform->malloc(sizeof(*seq) * frames);
+		if (!seq)
+			return res;
+		for (i = 0; i < frames; i++)
+			seq[i] = i + start_frame;
+		shuffle_array(seq, frames);
+	}
+
+	for (i = start_frame; i < start_frame + frames; i++) {
+		uint64_t frame_start = timing_start();
+		size_t frame_idx;
+		int success = 0;
+		uint64_t frame_time_ns = 0;
+		io_mode_t io_mode = IO_MODE_UNKNOWN;
+
+		res.completion[i - start_frame].start = frame_start;
+		switch (mode) {
+		case TEST_MODE_REVERSE:
+			frame_idx = end_frame - i + start_frame - 1;
+			break;
+		case TEST_MODE_RANDOM:
+			frame_idx = seq[i - start_frame];
+			break;
+		case TEST_MODE_NORM:
+		default:
+			frame_idx = i;
+			break;
+		}
+
+		if (!tester_frame_read(platform, path, frame, frame_idx, files,
+					&res.completion[i - start_frame], res.is_remote_filesystem)) {
+			res.frames_failed++;
+			record_error(&res, errno, "read", frame_idx, 0);
+			if (cb)
+				cb(cb_ctx, res.frames_written + res.frames_failed, 0, 0, IO_MODE_UNKNOWN, 0);
+			continue;
+		}
+
+		res.completion[i - start_frame].frame = timing_start();
+		++res.frames_written;
+		res.frames_succeeded++;
+		res.bytes_written += frame->size;
+		success = 1;
+		io_mode = res.completion[i - start_frame].io_mode;
+
+		if (io_mode == IO_MODE_DIRECT)
+			res.frames_direct_io++;
+		else if (io_mode == IO_MODE_BUFFERED) {
+			res.frames_buffered_io++;
+			res.fallback_count++;
+		}
+
+		frame_time_ns = timing_elapsed(frame_start);
+		if (frame_time_ns > 0) {
+			if (frame_time_ns < res.min_frame_time_ns)
+				res.min_frame_time_ns = frame_time_ns;
+			if (frame_time_ns > res.max_frame_time_ns)
+				res.max_frame_time_ns = frame_time_ns;
+		}
+
+		if (cb)
+			cb(cb_ctx, res.frames_written + res.frames_failed, frame->size, frame_time_ns, io_mode, success);
+
+		if (fps && budget) {
+			uint64_t frame_elapsed = timing_elapsed(frame_start);
+			while (frame_elapsed < budget) {
+				platform->usleep(100);
+				frame_elapsed = timing_elapsed(frame_start);
+			}
+		}
+	}
+
+	if (res.frames_succeeded + res.frames_failed > 0) {
+		res.success_rate_percent = (res.frames_succeeded * 100.0) /
+		                            (res.frames_succeeded + res.frames_failed);
+	}
+	if (res.frames_direct_io + res.frames_buffered_io > 0) {
+		res.direct_io_success_rate = (res.frames_direct_io * 100.0) /
+		                              (res.frames_direct_io + res.frames_buffered_io);
+	}
+	if (res.frames_succeeded > 0 && res.min_frame_time_ns != UINT64_MAX) {
+		uint64_t total_frame_time = 0;
+		for (size_t j = 0; j < frames; j++) {
+			if (res.completion[j].frame > 0)
+				total_frame_time += res.completion[j].frame;
+		}
+		res.avg_frame_time_ns = (res.frames_succeeded > 0) ?
+		                         (total_frame_time / res.frames_succeeded) : 0;
+	}
+
+	if (seq)
+		platform->free(seq);
+	return res;
+}

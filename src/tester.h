@@ -52,6 +52,11 @@ typedef enum test_files_t {
 	TEST_FILES_SINGLE = 1,
 } test_files_t;
 
+/* Progress callback for TUI updates */
+typedef void (*tester_progress_cb)(void *ctx, size_t frames_done,
+                                   size_t bytes_written, uint64_t frame_time_ns,
+                                   io_mode_t io_mode, int success);
+
 test_result_t tester_run_write(const platform_t *platform, const char *path,
 			       frame_t *frame, size_t start_frame,
 			       size_t frames, size_t fps, test_mode_t mode,
@@ -59,6 +64,18 @@ test_result_t tester_run_write(const platform_t *platform, const char *path,
 test_result_t tester_run_read(const platform_t *platform, const char *path,
 			      frame_t *frame, size_t start_frame, size_t frames,
 			      size_t fps, test_mode_t mode, test_files_t files);
+
+/* Versions with progress callback for TUI */
+test_result_t tester_run_write_cb(const platform_t *platform, const char *path,
+                                  frame_t *frame, size_t start_frame,
+                                  size_t frames, size_t fps, test_mode_t mode,
+                                  test_files_t files, tester_progress_cb cb,
+                                  void *cb_ctx);
+test_result_t tester_run_read_cb(const platform_t *platform, const char *path,
+                                 frame_t *frame, size_t start_frame,
+                                 size_t frames, size_t fps, test_mode_t mode,
+                                 test_files_t files, tester_progress_cb cb,
+                                 void *cb_ctx);
 frame_t *tester_get_frame_read(const platform_t *platform, const char *path,
 			       size_t header_size);
 

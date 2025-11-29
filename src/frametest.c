@@ -40,6 +40,18 @@
 #include "frametest.h"
 #include "report.h"
 #include "platform.h"
+#include "tui.h"
+
+/* Shared progress state for TUI updates (volatile for thread safety) */
+typedef struct tui_progress_t {
+	volatile size_t frames_completed;
+	volatile size_t frames_succeeded;
+	volatile size_t frames_failed;
+	volatile uint64_t bytes_written;
+	volatile uint64_t last_frame_time_ns;
+	volatile io_mode_t last_io_mode;
+	volatile int running;
+} tui_progress_t;
 
 typedef struct thread_info_t {
 	size_t id;
@@ -52,6 +64,9 @@ typedef struct thread_info_t {
 	size_t start_frame;
 	size_t frames;
 	size_t fps;
+
+	/* TUI shared progress pointer (NULL if TUI disabled) */
+	tui_progress_t *tui_progress;
 } thread_info_t;
 
 void *run_write_test_thread(void *arg)
@@ -102,6 +117,85 @@ void *run_read_test_thread(void *arg)
 	info->res = tester_run_read(info->platform, info->opts->path,
 				    info->opts->frm, info->start_frame,
 				    info->frames, info->fps, mode, files);
+
+	return NULL;
+}
+
+/* Progress callback for TUI - updates shared progress state using atomics */
+static void tui_progress_callback(void *ctx, size_t frames_done,
+                                  size_t bytes_written, uint64_t frame_time_ns,
+                                  io_mode_t io_mode, int success)
+{
+	tui_progress_t *progress = (tui_progress_t *)ctx;
+	if (!progress)
+		return;
+
+	/* Use atomic operations to avoid race conditions with multiple threads */
+	__sync_fetch_and_add(&progress->frames_completed, 1);
+	__sync_fetch_and_add(&progress->bytes_written, bytes_written);
+
+	/* These don't need to be precise - just last value seen */
+	progress->last_frame_time_ns = frame_time_ns;
+	progress->last_io_mode = io_mode;
+
+	if (success)
+		__sync_fetch_and_add(&progress->frames_succeeded, 1);
+	else
+		__sync_fetch_and_add(&progress->frames_failed, 1);
+}
+
+/* TUI-enabled write test thread with progress callback */
+void *run_write_test_thread_tui(void *arg)
+{
+	thread_info_t *info = (thread_info_t *)arg;
+	test_mode_t mode = TEST_MODE_NORM;
+	test_files_t files;
+
+	if (!arg)
+		return NULL;
+	if (!info->opts)
+		return NULL;
+
+	if (info->opts->reverse)
+		mode = TEST_MODE_REVERSE;
+	else if (info->opts->random)
+		mode = TEST_MODE_RANDOM;
+
+	files = info->opts->single_file ? TEST_FILES_SINGLE :
+					  TEST_FILES_MULTIPLE;
+
+	info->res = tester_run_write_cb(info->platform, info->opts->path,
+	                                info->opts->frm, info->start_frame,
+	                                info->frames, info->fps, mode, files,
+	                                tui_progress_callback, info->tui_progress);
+
+	return NULL;
+}
+
+/* TUI-enabled read test thread with progress callback */
+void *run_read_test_thread_tui(void *arg)
+{
+	thread_info_t *info = (thread_info_t *)arg;
+	test_mode_t mode = TEST_MODE_NORM;
+	test_files_t files;
+
+	if (!arg)
+		return NULL;
+	if (!info->opts)
+		return NULL;
+
+	if (info->opts->reverse)
+		mode = TEST_MODE_REVERSE;
+	else if (info->opts->random)
+		mode = TEST_MODE_RANDOM;
+
+	files = info->opts->single_file ? TEST_FILES_SINGLE :
+					  TEST_FILES_MULTIPLE;
+
+	info->res = tester_run_read_cb(info->platform, info->opts->path,
+	                               info->opts->frm, info->start_frame,
+	                               info->frames, info->fps, mode, files,
+	                               tui_progress_callback, info->tui_progress);
 
 	return NULL;
 }
@@ -248,6 +342,156 @@ int run_test_threads(const platform_t *platform, const char *tst,
 	return res;
 }
 
+/* TUI-enabled test runner with real-time progress updates */
+int run_test_threads_tui(const platform_t *platform, const char *tst,
+                         const opts_t *opts, void *(*tfunc)(void *))
+{
+	size_t i;
+	int res;
+	thread_info_t *threads;
+	test_result_t tres = { 0 };
+	tui_progress_t progress = { 0 };
+	tui_metrics_t metrics;
+	uint64_t start;
+	uint64_t last_render = 0;
+	const uint64_t render_interval_ns = 100000000UL; /* 100ms */
+
+	threads = platform->calloc(opts->threads, sizeof(*threads));
+	if (!threads)
+		return 1;
+
+	calculate_frame_range(threads, opts);
+
+	/* Detect filesystem type */
+	tres.filesystem_type = platform_detect_filesystem(opts->path);
+
+	/* Initialize TUI */
+	if (tui_init() != 0) {
+		fprintf(stderr, "Warning: TUI not supported, falling back to standard output\n");
+		platform->free(threads);
+		return run_test_threads(platform, tst, opts, tfunc);
+	}
+
+	/* Initialize TUI metrics */
+	tui_metrics_init(&metrics, opts->profile.name, opts->path,
+	                 opts->threads, opts->frames, tst, tres.filesystem_type);
+
+	progress.running = 1;
+
+	/* Start timing */
+	start = timing_start();
+
+	/* Create worker threads with shared progress */
+	for (i = 0; i < opts->threads; i++) {
+		int thread_res;
+
+		threads[i].id = i;
+		threads[i].platform = platform;
+		threads[i].opts = opts;
+		threads[i].tui_progress = &progress;
+
+		thread_res = platform->thread_create(&threads[i].thread, tfunc,
+		                                     (void *)&threads[i]);
+		if (thread_res) {
+			size_t j;
+			void *ret;
+
+			for (j = 0; j < i; j++)
+				platform->thread_cancel(threads[j].thread);
+			for (j = 0; j < i; j++)
+				platform->thread_join(threads[j].thread, &ret);
+			tui_cleanup();
+			platform->free(threads);
+			return 1;
+		}
+	}
+
+	/* TUI update loop - poll progress and render until all threads complete */
+	while (progress.running) {
+		uint64_t now = timing_start();
+		uint64_t elapsed = timing_elapsed(start);
+
+		/* Update metrics from shared progress (read atomically) */
+		metrics.frames_completed = __sync_fetch_and_add(&progress.frames_completed, 0);
+		metrics.frames_succeeded = __sync_fetch_and_add(&progress.frames_succeeded, 0);
+		metrics.frames_failed = __sync_fetch_and_add(&progress.frames_failed, 0);
+		metrics.bytes_written = __sync_fetch_and_add(&progress.bytes_written, 0);
+		metrics.elapsed_ns = elapsed;
+		metrics.current_io_mode = progress.last_io_mode;
+
+		/* Update sparkline with latest frame time */
+		if (progress.last_frame_time_ns > 0) {
+			tui_metrics_update(&metrics, progress.last_frame_time_ns,
+			                   0, progress.last_io_mode, 1);
+		}
+
+		/* Render at interval */
+		if (now - last_render >= render_interval_ns) {
+			tui_render(&metrics);
+			last_render = now;
+		}
+
+		/* Small sleep to avoid busy-waiting */
+		platform->usleep(10000); /* 10ms */
+
+		/* Check if we've processed all frames */
+		size_t total_done = metrics.frames_succeeded + metrics.frames_failed;
+		if (total_done >= opts->frames)
+			break;
+	}
+
+	/* Wait for all threads to complete */
+	res = 0;
+	for (i = 0; i < opts->threads; i++) {
+		void *ret;
+
+		if (platform->thread_join(threads[i].thread, &ret))
+			res = 1;
+		if (ret)
+			res = 1;
+
+		if (test_result_aggregate(&tres, &threads[i].res))
+			res = 1;
+		result_free(platform, &threads[i].res);
+	}
+
+	tres.time_taken_ns = timing_elapsed(start);
+
+	/* Final render */
+	metrics.frames_completed = tres.frames_written;
+	metrics.frames_succeeded = tres.frames_succeeded;
+	metrics.frames_failed = tres.frames_failed;
+	metrics.bytes_written = tres.bytes_written;
+	metrics.elapsed_ns = tres.time_taken_ns;
+	metrics.frames_direct_io = tres.frames_direct_io;
+	metrics.frames_buffered_io = tres.frames_buffered_io;
+
+	/* Calculate percentiles from completion data */
+	if (tres.completion && tres.frames_written > 0) {
+		uint64_t *frame_times = platform->malloc(tres.frames_written * sizeof(uint64_t));
+		if (frame_times) {
+			for (i = 0; i < tres.frames_written; i++) {
+				frame_times[i] = tres.completion[i].frame - tres.completion[i].start;
+			}
+			tui_percentiles_t percs = tui_calculate_percentiles(frame_times, tres.frames_written);
+			metrics.latency_p50_ns = percs.p50;
+			metrics.latency_p95_ns = percs.p95;
+			metrics.latency_p99_ns = percs.p99;
+			metrics.latency_min_ns = tres.min_frame_time_ns;
+			metrics.latency_max_ns = tres.max_frame_time_ns;
+			platform->free(frame_times);
+		}
+	}
+
+	/* Cleanup TUI and show final summary */
+	tui_cleanup();
+	tui_render_summary(&metrics, &tres);
+
+	result_free(platform, &tres);
+	platform->free(threads);
+	return res;
+}
+
 int run_tests(opts_t *opts)
 {
 	const platform_t *platform = NULL;
@@ -317,22 +561,41 @@ int run_tests(opts_t *opts)
 		}
 		opts->profile = opts->frm->profile;
 	}
-	if (!opts->csv && !opts->json)
+	if (!opts->csv && !opts->json && !opts->tui)
 		printf("Profile: %s\n", opts->profile.name);
 
 	if (opts->csv && !opts->no_csv_header)
 		print_header_csv(opts);
 
-	if (opts->mode & TEST_WRITE) {
-		if (!opts->frm) {
-			fprintf(stderr, "Can't allocate frame\n");
-			return 1;
+	/* Select appropriate test runner based on TUI mode */
+	if (opts->tui) {
+		/* TUI mode - use real-time dashboard */
+		if (opts->mode & TEST_WRITE) {
+			if (!opts->frm) {
+				fprintf(stderr, "Can't allocate frame\n");
+				return 1;
+			}
+			run_test_threads_tui(platform, "write", opts,
+			                     &run_write_test_thread_tui);
 		}
-		run_test_threads(platform, "write", opts,
-				 &run_write_test_thread);
-	}
-	if (opts->mode & TEST_READ) {
-		run_test_threads(platform, "read", opts, &run_read_test_thread);
+		if (opts->mode & TEST_READ) {
+			run_test_threads_tui(platform, "read", opts,
+			                     &run_read_test_thread_tui);
+		}
+	} else {
+		/* Standard mode */
+		if (opts->mode & TEST_WRITE) {
+			if (!opts->frm) {
+				fprintf(stderr, "Can't allocate frame\n");
+				return 1;
+			}
+			run_test_threads(platform, "write", opts,
+			                 &run_write_test_thread);
+		}
+		if (opts->mode & TEST_READ) {
+			run_test_threads(platform, "read", opts,
+			                 &run_read_test_thread);
+		}
 	}
 	frame_destroy(platform, opts->frm);
 
@@ -484,6 +747,7 @@ static struct option long_opts[] = {
 	{ "times", no_argument, 0, 0 },
 	{ "frametimes", no_argument, 0, 0 },
 	{ "histogram", no_argument, 0, 0 },
+	{ "tui", no_argument, 0, 0 },
 	{ "version", no_argument, 0, 'V' },
 	{ "help", no_argument, 0, 'h' },
 	{ 0, 0, 0, 0 },
@@ -509,6 +773,7 @@ static struct long_opt_desc long_opt_descs[] = {
 	{ "times", "Show breakdown of completion times (open/io/close)" },
 	{ "frametimes", "Show detailed timings of every frames in CSV format" },
 	{ "histogram", "Show histogram of completion times at the end" },
+	{ "tui", "Show real-time TUI dashboard during test" },
 	{ "version", "Display version information" },
 	{ "help", "Display this help" },
 	{ 0, 0 },
@@ -579,6 +844,8 @@ int main(int argc, char **argv)
 				opts.no_csv_header = 1;
 			if (!strcmp(long_opts[opt_index].name, "histogram"))
 				opts.histogram = 1;
+			if (!strcmp(long_opts[opt_index].name, "tui"))
+				opts.tui = 1;
 			if (!strcmp(long_opts[opt_index].name, "times"))
 				opts.times = 1;
 			if (!strcmp(long_opts[opt_index].name, "frametimes"))

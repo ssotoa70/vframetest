@@ -6,7 +6,7 @@ LDFLAGS+=-pthread
 SRC_DIR=src
 HEADERS := $(wildcard $(SRC_DIR)/*.h)
 BUILD_FOLDER=$(PWD)/build
-SOURCES=profile.c frame.c tester.c histogram.c report.c platform.c timing.c
+SOURCES=profile.c frame.c tester.c histogram.c report.c platform.c timing.c tui.c
 SRC_FILES=$(addprefix $(SRC_DIR)/,$(SOURCES))
 TEST_SOURCES=$(wildcard tests/test_*.c)
 OBJECTS=$(addprefix $(BUILD_FOLDER)/,$(SOURCES:.c=.o))
