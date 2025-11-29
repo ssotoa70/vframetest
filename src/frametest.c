@@ -934,32 +934,25 @@ static int cleanup_test_files(const char *path)
 	return count;
 }
 
-/* Open dashboard in browser via local HTTP server (needed for fetch to work) */
-static int open_dashboard(void)
+/* Open dashboard HTML report in browser (no server needed) */
+static int open_dashboard(const char *report_path)
 {
-	/* Start Python HTTP server in background and open browser */
-	/* Server runs on port 8765 to avoid conflicts */
 #if defined(__APPLE__)
-	return system("cd report-dashboard && "
-	              "(python3 -m http.server 8765 &) && "
-	              "sleep 0.5 && "
-	              "open http://localhost:8765 2>/dev/null");
+	char cmd[512];
+	snprintf(cmd, sizeof(cmd), "open '%s' 2>/dev/null", report_path);
+	return system(cmd);
 #elif defined(_WIN32)
-	return system("cd report-dashboard && "
-	              "start /B python -m http.server 8765 && "
-	              "timeout /t 1 && "
-	              "start http://localhost:8765");
+	char cmd[512];
+	snprintf(cmd, sizeof(cmd), "start \"\" \"%s\"", report_path);
+	return system(cmd);
 #else
 	/* Linux */
-	int ret = system("cd report-dashboard && "
-	                 "(python3 -m http.server 8765 &) && "
-	                 "sleep 0.5 && "
-	                 "xdg-open http://localhost:8765 2>/dev/null");
+	char cmd[512];
+	snprintf(cmd, sizeof(cmd), "xdg-open '%s' 2>/dev/null", report_path);
+	int ret = system(cmd);
 	if (ret != 0) {
-		ret = system("cd report-dashboard && "
-		             "(python3 -m http.server 8765 &) && "
-		             "sleep 0.5 && "
-		             "sensible-browser http://localhost:8765 2>/dev/null");
+		snprintf(cmd, sizeof(cmd), "sensible-browser '%s' 2>/dev/null", report_path);
+		ret = system(cmd);
 	}
 	return ret;
 #endif
@@ -975,26 +968,28 @@ static int compare_uint64(const void *a, const void *b)
 	return 0;
 }
 
-/* Export test results to JSON for dashboard visualization */
-static int export_test_results_json(const char *filepath, 
-                                    tui_app_state_t *state,
-                                    tui_metrics_t *metrics,
-                                    const opts_t *test_opts)
+/* Generate self-contained HTML report with embedded test data */
+static int generate_html_report(const char *output_path,
+                                const char *template_path,
+                                tui_app_state_t *state,
+                                tui_metrics_t *metrics,
+                                const opts_t *test_opts)
 {
-	FILE *fp = fopen(filepath, "w");
-	if (!fp) {
+	FILE *tmpl = fopen(template_path, "r");
+	FILE *out = fopen(output_path, "w");
+	if (!tmpl || !out) {
+		if (tmpl) fclose(tmpl);
+		if (out) fclose(out);
 		return -1;
 	}
-	
+
 	size_t frame_count = tui_history_count(state);
-	
-	/* Build array of durations for percentile calculation */
+
+	/* Calculate stats */
 	uint64_t *durations = NULL;
 	size_t valid_count = 0;
-	uint64_t total_ns = 0;
-	uint64_t min_ns = UINT64_MAX;
-	uint64_t max_ns = 0;
-	
+	uint64_t total_ns = 0, min_ns = UINT64_MAX, max_ns = 0;
+
 	if (frame_count > 0) {
 		durations = malloc(frame_count * sizeof(uint64_t));
 		if (durations) {
@@ -1007,131 +1002,91 @@ static int export_test_results_json(const char *filepath,
 					if (f->duration_ns > max_ns) max_ns = f->duration_ns;
 				}
 			}
-			/* Sort for percentile calculation */
-			if (valid_count > 0) {
+			if (valid_count > 0)
 				qsort(durations, valid_count, sizeof(uint64_t), compare_uint64);
-			}
 		}
 	}
-	
-	/* Calculate percentiles */
+
 	uint64_t p50_ns = 0, p95_ns = 0, p99_ns = 0;
 	if (durations && valid_count > 0) {
 		p50_ns = durations[(size_t)(valid_count * 0.50)];
 		p95_ns = durations[(size_t)(valid_count * 0.95)];
 		p99_ns = durations[valid_count > 1 ? (size_t)(valid_count * 0.99) : valid_count - 1];
 	}
-	
+
 	double avg_ms = valid_count > 0 ? (double)total_ns / valid_count / 1e6 : 0;
 	double elapsed_sec = (double)metrics->elapsed_ns / 1e9;
-	double throughput = elapsed_sec > 0 ? 
+	double throughput = elapsed_sec > 0 ?
 	                    ((double)metrics->bytes_written / (1024.0 * 1024.0)) / elapsed_sec : 0;
-	
-	/* Write JSON header */
-	fprintf(fp, "{\n");
-	
-	/* Config section */
-	fprintf(fp, "  \"config\": {\n");
-	fprintf(fp, "    \"profile\": \"%s\",\n", test_opts->profile.name);
-	fprintf(fp, "    \"path\": \"%s\",\n", test_opts->path);
-	fprintf(fp, "    \"threads\": %zu,\n", test_opts->threads);
-	fprintf(fp, "    \"frames\": %zu,\n", test_opts->frames);
-	fprintf(fp, "    \"filesystem\": \"%s\"\n", 
-	        metrics->fs_type == FILESYSTEM_SMB ? "SMB" :
-	        metrics->fs_type == FILESYSTEM_NFS ? "NFS" : "LOCAL");
-	fprintf(fp, "  },\n");
-	
-	/* Summary section */
-	fprintf(fp, "  \"summary\": {\n");
-	fprintf(fp, "    \"total_frames\": %zu,\n", metrics->frames_completed);
-	fprintf(fp, "    \"frames_succeeded\": %zu,\n", metrics->frames_succeeded);
-	fprintf(fp, "    \"frames_failed\": %zu,\n", metrics->frames_failed);
-	fprintf(fp, "    \"throughput_mibs\": %.2f,\n", throughput);
-	fprintf(fp, "    \"duration_sec\": %.2f,\n", elapsed_sec);
-	fprintf(fp, "    \"io_mode\": \"%s\"\n", 
-	        metrics->current_io_mode == IO_MODE_DIRECT ? "Direct" : "Buffered");
-	fprintf(fp, "  },\n");
-	
-	/* Latency section */
-	fprintf(fp, "  \"latency\": {\n");
-	fprintf(fp, "    \"min_ms\": %.4f,\n", min_ns == UINT64_MAX ? 0.0 : (double)min_ns / 1e6);
-	fprintf(fp, "    \"max_ms\": %.4f,\n", (double)max_ns / 1e6);
-	fprintf(fp, "    \"avg_ms\": %.4f,\n", avg_ms);
-	fprintf(fp, "    \"p50_ms\": %.4f,\n", (double)p50_ns / 1e6);
-	fprintf(fp, "    \"p95_ms\": %.4f,\n", (double)p95_ns / 1e6);
-	fprintf(fp, "    \"p99_ms\": %.4f\n", (double)p99_ns / 1e6);
-	fprintf(fp, "  },\n");
-	
-	/* Frames array - include bytes and thread_id for detailed analysis */
-	fprintf(fp, "  \"frames\": [\n");
-	for (size_t i = 0; i < frame_count; i++) {
-		const tui_frame_record_t *f = tui_history_get(state, i);
-		if (!f) continue;
-		
-		fprintf(fp, "    {\"frame_num\": %zu, \"duration_ms\": %.4f, \"bytes\": %zu, \"io_mode\": \"%s\", \"success\": %s, \"thread\": %d}%s\n",
-		        f->frame_num,
-		        (double)f->duration_ns / 1e6,
-		        f->bytes,
-		        f->io_mode == IO_MODE_DIRECT ? "direct" : "buffered",
-		        f->success ? "true" : "false",
-		        f->thread_id,
-		        i < frame_count - 1 ? "," : "");
-	}
-	fprintf(fp, "  ],\n");
-	
-	/* Throughput samples - calculate throughput in time windows */
-	fprintf(fp, "  \"throughput_samples\": [\n");
-	if (frame_count > 0) {
-		#define THROUGHPUT_SAMPLES 50
-		size_t window_size = frame_count / THROUGHPUT_SAMPLES;
-		if (window_size < 1) window_size = 1;
-		
-		for (size_t start = 0; start < frame_count; start += window_size) {
-			size_t end = start + window_size;
-			if (end > frame_count) end = frame_count;
-			
-			size_t window_bytes = 0;
-			uint64_t window_duration_ns = 0;
-			size_t window_frame_start = 0;
-			
-			for (size_t j = start; j < end; j++) {
-				const tui_frame_record_t *f = tui_history_get(state, j);
-				if (f) {
-					window_bytes += f->bytes;
-					window_duration_ns += f->duration_ns;
-					if (j == start) window_frame_start = f->frame_num;
+
+	/* Read template and inject data after <head> */
+	char line[4096];
+	int injected = 0;
+
+	while (fgets(line, sizeof(line), tmpl)) {
+		fputs(line, out);
+
+		/* Inject data script after opening <head> tag */
+		if (!injected && strstr(line, "<head>")) {
+			fprintf(out, "<script>window.VFRAMETEST_DATA = {\n");
+			fprintf(out, "  \"config\": {\"profile\": \"%s\", \"path\": \"%s\", \"threads\": %zu, \"frames\": %zu, \"filesystem\": \"%s\"},\n",
+			        test_opts->profile.name, test_opts->path, test_opts->threads, test_opts->frames,
+			        metrics->fs_type == FILESYSTEM_SMB ? "SMB" : metrics->fs_type == FILESYSTEM_NFS ? "NFS" : "LOCAL");
+			fprintf(out, "  \"summary\": {\"total_frames\": %zu, \"frames_succeeded\": %zu, \"frames_failed\": %zu, \"throughput_mibs\": %.2f, \"duration_sec\": %.2f, \"io_mode\": \"%s\"},\n",
+			        metrics->frames_completed, metrics->frames_succeeded, metrics->frames_failed, throughput, elapsed_sec,
+			        metrics->current_io_mode == IO_MODE_DIRECT ? "Direct" : "Buffered");
+			fprintf(out, "  \"latency\": {\"min_ms\": %.4f, \"max_ms\": %.4f, \"avg_ms\": %.4f, \"p50_ms\": %.4f, \"p95_ms\": %.4f, \"p99_ms\": %.4f},\n",
+			        min_ns == UINT64_MAX ? 0.0 : (double)min_ns / 1e6, (double)max_ns / 1e6, avg_ms,
+			        (double)p50_ns / 1e6, (double)p95_ns / 1e6, (double)p99_ns / 1e6);
+
+			/* Frames array */
+			fprintf(out, "  \"frames\": [");
+			for (size_t i = 0; i < frame_count; i++) {
+				const tui_frame_record_t *f = tui_history_get(state, i);
+				if (!f) continue;
+				fprintf(out, "%s{\"frame_num\":%zu,\"duration_ms\":%.4f,\"bytes\":%zu,\"io_mode\":\"%s\",\"success\":%s,\"thread\":%d}",
+				        i > 0 ? "," : "", f->frame_num, (double)f->duration_ns / 1e6, f->bytes,
+				        f->io_mode == IO_MODE_DIRECT ? "direct" : "buffered", f->success ? "true" : "false", f->thread_id);
+			}
+			fprintf(out, "],\n");
+
+			/* Throughput samples */
+			fprintf(out, "  \"throughput_samples\": [");
+			if (frame_count > 0) {
+				size_t window_size = frame_count / 50;
+				if (window_size < 1) window_size = 1;
+				int first = 1;
+				for (size_t start = 0; start < frame_count; start += window_size) {
+					size_t end = start + window_size;
+					if (end > frame_count) end = frame_count;
+					size_t window_bytes = 0;
+					uint64_t window_duration_ns = 0;
+					size_t window_frame_start = 0;
+					for (size_t j = start; j < end; j++) {
+						const tui_frame_record_t *f = tui_history_get(state, j);
+						if (f) {
+							window_bytes += f->bytes;
+							window_duration_ns += f->duration_ns;
+							if (j == start) window_frame_start = f->frame_num;
+						}
+					}
+					double wtp = window_duration_ns > 0 ? ((double)window_bytes / (1024.0 * 1024.0)) / ((double)window_duration_ns / 1e9) : 0;
+					fprintf(out, "%s{\"frame\":%zu,\"throughput_mibs\":%.2f}", first ? "" : ",", window_frame_start, wtp);
+					first = 0;
 				}
 			}
-			
-			double window_throughput_mibs = 0;
-			if (window_duration_ns > 0) {
-				double secs = (double)window_duration_ns / 1e9;
-				window_throughput_mibs = ((double)window_bytes / (1024.0 * 1024.0)) / secs;
-			}
-			
-			fprintf(fp, "    {\"frame\": %zu, \"throughput_mibs\": %.2f}%s\n",
-			        window_frame_start,
-			        window_throughput_mibs,
-			        (start + window_size >= frame_count) ? "" : ",");
+
+			time_t now = time(NULL);
+			char timestamp[64];
+			strftime(timestamp, sizeof(timestamp), "%Y-%m-%dT%H:%M:%SZ", gmtime(&now));
+			fprintf(out, "],\n  \"timestamp\": \"%s\"\n};</script>\n", timestamp);
+			injected = 1;
 		}
-		#undef THROUGHPUT_SAMPLES
 	}
-	fprintf(fp, "  ],\n");
-	
-	/* Timestamp */
-	time_t now = time(NULL);
-	char timestamp[64];
-	strftime(timestamp, sizeof(timestamp), "%Y-%m-%dT%H:%M:%SZ", gmtime(&now));
-	fprintf(fp, "  \"timestamp\": \"%s\"\n", timestamp);
-	
-	fprintf(fp, "}\n");
-	
-	/* Cleanup */
-	if (durations) {
-		free(durations);
-	}
-	
-	fclose(fp);
+
+	if (durations) free(durations);
+	fclose(tmpl);
+	fclose(out);
 	return 0;
 }
 
@@ -1366,13 +1321,10 @@ static int run_interactive(opts_t *opts)
 			size_t last_frame_count = 0;
 			size_t frame_bytes = frm->size;  /* Cache frame size for history */
 			while (state.run_state == TUI_STATE_RUNNING) {
-				/* Update metrics from progress */
+				/* Update timing metrics (frame counts come from tui_metrics_update) */
 				size_t current_frames = progress.frames_completed;
-				metrics.frames_completed = current_frames;
-				metrics.bytes_written = progress.bytes_written;
 				metrics.elapsed_ns = timing_elapsed(start_time);
-				metrics.frames_succeeded = current_frames;
-				
+
 				if (progress.last_frame_time_ns > 0) {
 					/* Update latency stats */
 					metrics.current_io_mode = progress.last_io_mode;
@@ -1397,8 +1349,8 @@ static int run_interactive(opts_t *opts)
 					}
 				}
 				
-				/* Check if done */
-				if (metrics.frames_completed >= test_opts.frames) {
+				/* Check if done (use progress counter as authoritative source) */
+				if (current_frames >= test_opts.frames) {
 					state.run_state = TUI_STATE_COMPLETED;
 				}
 				
@@ -1428,14 +1380,16 @@ static int run_interactive(opts_t *opts)
 			/* Final update */
 			metrics.elapsed_ns = timing_elapsed(start_time);
 			state.needs_redraw = 1;
-			
-			/* Export test results to JSON for dashboard */
-			export_test_results_json("report-dashboard/data/test-results.json",
-			                         &state, &metrics, &test_opts);
-			
+
+			/* Generate self-contained HTML report */
+			const char *report_path = "report-dashboard/report.html";
+			generate_html_report(report_path,
+			                     "report-dashboard/index.html",
+			                     &state, &metrics, &test_opts);
+
 			/* Open dashboard in browser if enabled */
 			if (state.config.open_dashboard) {
-				open_dashboard();
+				open_dashboard(report_path);
 			}
 			
 			/* Handle cleanup based on config */
