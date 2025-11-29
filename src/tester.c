@@ -290,8 +290,11 @@ test_result_t tester_run_write(const platform_t *platform, const char *path,
 
 	if (mode == TEST_MODE_RANDOM) {
 		seq = platform->malloc(sizeof(*seq) * frames);
-		if (!seq)
+		if (!seq) {
+			platform->free(res.completion);
+			res.completion = NULL;
 			return res;
+		}
 
 		for (i = 0; i < frames; i++)
 			seq[i] = start_frame + i;
@@ -453,8 +456,11 @@ test_result_t tester_run_read(const platform_t *platform, const char *path,
 
 	if (mode == TEST_MODE_RANDOM) {
 		seq = platform->malloc(sizeof(*seq) * frames);
-		if (!seq)
+		if (!seq) {
+			platform->free(res.completion);
+			res.completion = NULL;
 			return res;
+		}
 
 		for (i = 0; i < frames; i++)
 			seq[i] = i + start_frame;
@@ -626,8 +632,11 @@ test_result_t tester_run_write_cb(const platform_t *platform, const char *path,
 
 	if (mode == TEST_MODE_RANDOM) {
 		seq = platform->malloc(sizeof(*seq) * frames);
-		if (!seq)
+		if (!seq) {
+			platform->free(res.completion);
+			res.completion = NULL;
 			return res;
+		}
 		for (i = 0; i < frames; i++)
 			seq[i] = start_frame + i;
 		shuffle_array(seq, frames);
@@ -752,8 +761,11 @@ test_result_t tester_run_read_cb(const platform_t *platform, const char *path,
 
 	if (mode == TEST_MODE_RANDOM) {
 		seq = platform->malloc(sizeof(*seq) * frames);
-		if (!seq)
+		if (!seq) {
+			platform->free(res.completion);
+			res.completion = NULL;
 			return res;
+		}
 		for (i = 0; i < frames; i++)
 			seq[i] = i + start_frame;
 		shuffle_array(seq, frames);
