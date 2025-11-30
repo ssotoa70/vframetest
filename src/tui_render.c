@@ -183,9 +183,15 @@ static void render_config(tui_app_state_t *state, int width, int start_row)
 	row++;
 
 	/* Path */
-	const char *path = state->config.path[0] ? state->config.path :
-						   "(not set)";
+	const char *path;
 	int is_selected = (state->selected_field == TUI_CONFIG_PATH);
+	int is_editing = state->editing_text && is_selected;
+
+	if (is_editing) {
+		path = state->edit_buffer;
+	} else {
+		path = state->config.path[0] ? state->config.path : "(not set)";
+	}
 
 	screen_move(&scr, row, 2);
 	if (is_selected) {
@@ -196,8 +202,15 @@ static void render_config(tui_app_state_t *state, int width, int start_row)
 	screen_print(&scr, is_selected ? ">" : " ");
 	SET_TEXT();
 	screen_print(&scr, " Target Path:  ");
-	SET_VALUE();
-	screen_print(&scr, path);
+	if (is_editing) {
+		screen_set_attr(&scr, ATTR_BOLD);
+		screen_set_fg(&scr, COLOR_CYAN);
+		screen_print(&scr, path);
+		screen_print(&scr, "_"); /* Cursor */
+	} else {
+		SET_VALUE();
+		screen_print(&scr, path);
+	}
 	RESET_COLOR();
 	row++;
 

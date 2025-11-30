@@ -257,6 +257,16 @@ int tui_input_handle_key(tui_app_state_t *state, int key)
 		return 1;
 	}
 
+	/* When editing text, skip global keys (except Ctrl+C/Ctrl+D for emergency quit) */
+	if (state->editing_text) {
+		if (key == TTY_KEY_CTRL_C || key == TTY_KEY_CTRL_D) {
+			tui_state_request_quit(state);
+			return 1;
+		}
+		/* Route directly to config handler for text input */
+		return handle_config_key(state, key);
+	}
+
 	/* Try global keys first */
 	if (handle_global_key(state, key))
 		return 1;
