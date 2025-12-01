@@ -25,9 +25,9 @@
 #ifdef _WIN32
   #include <winsock2.h>
   #include <ws2tcpip.h>
-  #pragma comment(lib, "ws2_32.lib")
+  /* Note: #pragma comment not supported in MinGW, link via Makefile if needed */
   #define close(s) closesocket(s)
-  #define SOCKET_ERROR SOCKET_ERROR
+  /* SOCKET_ERROR is defined in winsock2.h, don't redefine */
   typedef int socklen_t;
 #else
   /* POSIX: Linux, macOS, etc. */

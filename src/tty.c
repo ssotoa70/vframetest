@@ -121,14 +121,18 @@ int tty_was_resized(void)
  * POSIX Implementation (Linux, macOS, etc.)
  * ============================================================================ */
 
-/* Enable POSIX signal handling (sigaction, sigemptyset, SA_RESTART) */
-#if defined(__linux__) && !defined(_POSIX_C_SOURCE)
+/* Enable POSIX signal handling (sigaction, sigemptyset, SA_RESTART)
+ * MUST be defined BEFORE any system includes */
+#if !defined(_POSIX_C_SOURCE)
 #define _POSIX_C_SOURCE 200809L
+#endif
+#if !defined(_DEFAULT_SOURCE)
+#define _DEFAULT_SOURCE
 #endif
 
 #include <unistd.h>
-#include <termios.h>
 #include <signal.h>
+#include <termios.h>
 #include <errno.h>
 #include <sys/ioctl.h>
 #include <sys/select.h>
