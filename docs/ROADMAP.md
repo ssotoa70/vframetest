@@ -54,6 +54,22 @@
 - ✅ Enhanced JSON output with optimization_metrics section
 - ✅ Cross-platform support (macOS, Linux, Windows)
 
+## Completed: Professional Frame Formats ✅ (v25.13.1)
+
+### DPX/EXR Profile Addition & Profile Filtering
+- ✅ DPX Profiles (10/12-bit professional uncompressed)
+  - DPX-2K-10bit (2048×1556, 4 bytes/pixel, 8KB header)
+  - DPX-FULLHD-10bit (1920×1080, 4 bytes/pixel, 8KB header)
+  - DPX-4K-10bit (3840×2160, 4 bytes/pixel, 8KB header)
+  - DPX-8K-10bit (7680×4320, 4 bytes/pixel, 8KB header)
+- ✅ EXR Profiles (professional float/half-precision)
+  - Half-precision: EXR-FULLHD-half, EXR-4K-half, EXR-8K-half (6 bytes/pixel)
+  - Float-precision: EXR-FULLHD-float, EXR-4K-float, EXR-8K-float (12 bytes/pixel)
+- ✅ Profile Filtering - `--list-profiles-filter <prefix>` for quick profile lookup
+- ✅ Enhanced Byte Size Display - Raw and aligned sizes in `--list-profiles` output
+- ✅ Comprehensive Testing - New unit tests for all profiles
+- ✅ Version bumped to 25.13.1
+
 ## In Development: Phase 4 🚀
 
 ### Phase 4A: TUI Real-Time Dashboard (Priority 1)
