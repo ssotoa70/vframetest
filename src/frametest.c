@@ -446,7 +446,7 @@ int opt_parse_frame_size(opts_t *opt, const char *arg)
 					   &opt->frame_size);
 }
 
-void list_profiles(void)
+void list_profiles(const char *filter)
 {
 	size_t cnt = profile_count();
 	size_t i;
@@ -455,9 +455,19 @@ void list_profiles(void)
 	for (i = 1; i < cnt; i++) {
 		profile_t prof = profile_get_by_index(i);
 
+		/* Apply filter if provided */
+		if (filter && strncmp(prof.name, filter, strlen(filter)) != 0)
+			continue;
+
 		printf("  %s\n", prof.name);
 		printf("     %zux%zu, %zu bits, %zuB header\n", prof.width,
 		       prof.height, prof.bytes_per_pixel * 8, prof.header_size);
+
+		/* Calculate and display byte sizes */
+		size_t raw_size = prof.width * prof.height * prof.bytes_per_pixel + prof.header_size;
+		size_t aligned_size = profile_size(&prof);
+		printf("     Raw size: %zu bytes, Aligned size: %zu bytes\n",
+		       raw_size, aligned_size);
 	}
 }
 
@@ -472,6 +482,7 @@ static struct option long_opts[] = {
 	{ "streaming", no_argument, 0, 's' },
 	{ "frame-size", no_argument, 0, 'z' },
 	{ "list-profiles", no_argument, 0, 'l' },
+	{ "list-profiles-filter", required_argument, 0, 0 },
 	{ "threads", required_argument, 0, 't' },
 	{ "num-frames", required_argument, 0, 'n' },
 	{ "fps", required_argument, 0, 'f' },
@@ -497,6 +508,7 @@ static struct long_opt_desc long_opt_descs[] = {
 	{ "frame-size",
 	  "Specify frame size for reading, required for streaming" },
 	{ "list-profiles", "List available profiles" },
+	{ "list-profiles-filter", "Filter profiles by name prefix" },
 	{ "threads", "Use number of threads (default 1)" },
 	{ "num-frames", "Write number of frames (default 1800)" },
 	{ "fps", "Limit frame rate to frames per second" },
@@ -587,6 +599,9 @@ int main(int argc, char **argv)
 				if (opt_parse_header_size(&opts, optarg))
 					goto invalid_long;
 			}
+			if (!strcmp(long_opts[opt_index].name, "list-profiles-filter")) {
+				opts.list_profiles_filter = optarg;
+			}
 			break;
 		case 'h':
 			usage(argv[0]);
@@ -639,7 +654,7 @@ int main(int argc, char **argv)
 				goto invalid_short;
 			break;
 		case 'l':
-			list_profiles();
+			list_profiles(opts.list_profiles_filter);
 			return 0;
 		case 'V':
 			version();
@@ -649,6 +664,12 @@ int main(int argc, char **argv)
 			return 1;
 		}
 	}
+	/* Handle --list-profiles-filter without --list-profiles */
+	if (opts.list_profiles_filter) {
+		list_profiles(opts.list_profiles_filter);
+		return 0;
+	}
+
 	if (optind < argc) {
 		int i;
 
