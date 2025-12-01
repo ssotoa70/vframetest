@@ -114,7 +114,7 @@ int http_server_start(http_server_t *server)
 
     /* Set socket options */
     if (setsockopt(server->listen_socket, SOL_SOCKET, SO_REUSEADDR,
-                   &reuse, sizeof(reuse)) < 0) {
+                   (const char*)&reuse, sizeof(reuse)) < 0) {
         perror("setsockopt");
         close(server->listen_socket);
         return -1;
