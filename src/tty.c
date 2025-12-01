@@ -11,22 +11,131 @@
  * (at your option) any later version.
  */
 
-/* Enable POSIX signal handling (sigaction, sigemptyset, SA_RESTART) */
-#if defined(__linux__) && !defined(_POSIX_C_SOURCE)
-#define _POSIX_C_SOURCE 200809L
-#endif
+#include "tty.h"
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#ifdef _WIN32
+/* ============================================================================
+ * Windows Stubs - TTY features not supported on Windows console
+ * ============================================================================ */
+
+int tty_is_supported(void)
+{
+	/* Windows console doesn't support POSIX termios */
+	return 0;
+}
+
+int tty_init(void)
+{
+	/* Not supported on Windows */
+	return -1;
+}
+
+void tty_cleanup(void)
+{
+	/* No-op on Windows */
+}
+
+int tty_is_initialized(void)
+{
+	/* Never initialized on Windows */
+	return 0;
+}
+
+tty_size_t tty_get_size(void)
+{
+	/* Return default size */
+	return (tty_size_t){ 80, 24 };
+}
+
+void tty_set_resize_callback(tty_resize_callback_t callback, void *ctx)
+{
+	(void)callback;
+	(void)ctx;
+	/* No-op on Windows */
+}
+
+int tty_read_key(int timeout_ms)
+{
+	(void)timeout_ms;
+	/* Not supported on Windows */
+	return TTY_KEY_ERROR;
+}
+
+int tty_key_available(void)
+{
+	/* Not supported on Windows */
+	return 0;
+}
+
+void tty_move_cursor(int row, int col)
+{
+	(void)row;
+	(void)col;
+	/* No-op on Windows */
+}
+
+void tty_clear_screen(void)
+{
+	/* No-op on Windows */
+}
+
+void tty_clear_to_eol(void)
+{
+	/* No-op on Windows */
+}
+
+void tty_show_cursor(void)
+{
+	/* No-op on Windows */
+}
+
+void tty_hide_cursor(void)
+{
+	/* No-op on Windows */
+}
+
+void tty_flush(void)
+{
+	/* No-op on Windows */
+	fflush(stdout);
+}
+
+int tty_should_quit(void)
+{
+	/* Not supported on Windows */
+	return 0;
+}
+
+int tty_was_resized(void)
+{
+	/* Not supported on Windows */
+	return 0;
+}
+
+#else
+/* ============================================================================
+ * POSIX Implementation (Linux, macOS, etc.)
+ * ============================================================================ */
+
+/* Enable POSIX signal handling (sigaction, sigemptyset, SA_RESTART)
+ * MUST be defined BEFORE any system includes */
+#if !defined(_POSIX_C_SOURCE)
+#define _POSIX_C_SOURCE 200809L
+#endif
+#if !defined(_DEFAULT_SOURCE)
+#define _DEFAULT_SOURCE
+#endif
+
 #include <unistd.h>
-#include <termios.h>
 #include <signal.h>
+#include <termios.h>
 #include <errno.h>
 #include <sys/ioctl.h>
 #include <sys/select.h>
-
-#include "tty.h"
 
 /* ANSI escape sequences */
 #define ESC "\033"
@@ -456,3 +565,5 @@ int tty_was_resized(void)
 	}
 	return 0;
 }
+
+#endif /* _WIN32 */
