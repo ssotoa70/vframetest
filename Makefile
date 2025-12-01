@@ -1,28 +1,12 @@
 MAJOR=25
-MINOR=13
+MINOR=14
 PATCH=0
 CFLAGS+=-std=c99 -O2 -Wall -Werror -Wpedantic -pedantic-errors -DMAJOR=$(MAJOR) -DMINOR=$(MINOR) -DPATCH=$(PATCH)
 LDFLAGS+=-pthread
 SRC_DIR=src
 HEADERS := $(wildcard $(SRC_DIR)/*.h)
 BUILD_FOLDER=$(PWD)/build
-
-# Core sources (all platforms)
-SOURCES_CORE=profile.c frame.c tester.c histogram.c report.c platform.c timing.c
-
-# TUI sources (Unix only - requires termios.h, sys/ioctl.h)
-SOURCES_TUI=tui.c tty.c tui_state.c tui_input.c tui_views.c screen.c tui_render.c
-
-# Detect Windows (MinGW/MSYS2)
-ifdef MSYSTEM
-  SOURCES=$(SOURCES_CORE)
-  CFLAGS+=-DNO_TUI
-else ifeq ($(OS),Windows_NT)
-  SOURCES=$(SOURCES_CORE)
-  CFLAGS+=-DNO_TUI
-else
-  SOURCES=$(SOURCES_CORE) $(SOURCES_TUI)
-endif
+SOURCES=profile.c frame.c tester.c histogram.c report.c platform.c timing.c tui.c tui_state.c tui_input.c tui_render.c tui_views.c tty.c screen.c
 SRC_FILES=$(addprefix $(SRC_DIR)/,$(SOURCES))
 TEST_SOURCES=$(wildcard tests/test_*.c)
 OBJECTS=$(addprefix $(BUILD_FOLDER)/,$(SOURCES:.c=.o))

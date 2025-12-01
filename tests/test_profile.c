@@ -112,6 +112,38 @@ int test_profile_get_by_index(void)
 	return 0;
 }
 
+int test_profile_dpx_4k_10bit(void)
+{
+	profile_t prof;
+
+	prof = profile_get_by_name("DPX-4K-10bit");
+
+	TEST_ASSERT_EQ(prof.prof, PROF_DPX);
+	TEST_ASSERT_EQ_STR(prof.name, "DPX-4K-10bit");
+	TEST_ASSERT_EQ(prof.width, 3840);
+	TEST_ASSERT_EQ(prof.height, 2160);
+	TEST_ASSERT_EQ(prof.bytes_per_pixel, 4);
+	TEST_ASSERT_EQ(prof.header_size, 8192);
+
+	return 0;
+}
+
+int test_profile_exr_4k_float(void)
+{
+	profile_t prof;
+
+	prof = profile_get_by_name("EXR-4K-float");
+
+	TEST_ASSERT_EQ(prof.prof, PROF_EXR);
+	TEST_ASSERT_EQ_STR(prof.name, "EXR-4K-float");
+	TEST_ASSERT_EQ(prof.width, 3840);
+	TEST_ASSERT_EQ(prof.height, 2160);
+	TEST_ASSERT_EQ(prof.bytes_per_pixel, 12);
+	TEST_ASSERT_EQ(prof.header_size, 0);
+
+	return 0;
+}
+
 int test_profile(void)
 {
 	TEST_INIT();
@@ -121,6 +153,8 @@ int test_profile(void)
 	TEST(profile_get_by_name);
 	TEST(profile_get_by_type);
 	TEST(profile_get_by_index);
+	TEST(profile_dpx_4k_10bit);
+	TEST(profile_exr_4k_float);
 
 	TEST_END();
 }

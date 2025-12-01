@@ -30,6 +30,9 @@ $(BUILD_FOLDER)/test_tester: $(BUILD_FOLDER)/test_platform.o $(BUILD_FOLDER)/tes
 $(BUILD_FOLDER)/test_tui: $(BUILD_FOLDER)/test_platform.o $(BUILD_FOLDER)/test_tui.o
 	$(CC) -o $@ $^ $(LDFLAGS)
 
+$(BUILD_FOLDER)/test_tui.o: test_tui.c ../src/tui.c ../src/tui.h ../src/tui_state.c ../src/tui_state.h ../src/tui_input.c ../src/tui_input.h ../src/tui_render.c ../src/tui_render.h ../src/tui_views.c ../src/tui_views.h ../src/tty.c ../src/tty.h ../src/screen.c ../src/screen.h test_platform.c
+	$(CC) -c $(CFLAGS) -o $@ $<
+
 $(BUILD_FOLDER)/test_%: $(BUILD_FOLDER)/test_platform.o $(BUILD_FOLDER)/test_%.o
 	$(CC) -o $@ $^ $(LDFLAGS)
 

@@ -60,7 +60,7 @@ vframetest -w FULLHD-24bit -t 4 -n 100 test-data
 
 - ✅ **Frame-Based Testing** - Accurate video workload simulation
 - ✅ **Multi-Threading** - Configurable parallel testing (1-16+ threads)
-- ✅ **Multiple Profiles** - SD, HD, 4K, 8K + custom resolutions
+- ✅ **Multiple Profiles** - SD, HD, FULLHD, 4K, 8K, DPX, EXR + custom resolutions
 - ✅ **Rich Metrics** - FPS, throughput (MiB/s), completion times
 - ✅ **Real-Time TUI** - Live dashboard with progress, latency histogram, and metrics
 - ✅ **Interactive Mode** - Configuration menu for test parameters
@@ -88,6 +88,12 @@ vframetest -w FULLHD-24bit -t 4 -n 100 test-data
 - ✅ **Network Timeout Handling** - Configurable timeouts for network filesystems
 - ✅ **Performance Metrics** - Min/max/avg frame times with trend analysis
 - ✅ **Enhanced Output** - CSV and JSON include optimization metrics
+
+### Professional Frame Formats (v25.13.1+)
+- ✅ **DPX Profiles** - 10/12-bit professional uncompressed (DPX-2K, DPX-FULLHD, DPX-4K, DPX-8K)
+- ✅ **EXR Profiles** - Half/float-precision professional formats (EXR-FULLHD, EXR-4K, EXR-8K)
+- ✅ **Profile Filtering** - `--list-profiles-filter` for finding profiles by name
+- ✅ **Byte Size Display** - Raw and aligned sizes in `--list-profiles` output
 
 ### Professional Infrastructure
 
@@ -273,15 +279,18 @@ We welcome contributions! See [CONTRIBUTING.md](docs/CONTRIBUTING.md) for:
 
 ## 📈 Project Status
 
-| Phase       | Status      | Features                                                     |
-| ----------- | ----------- | ------------------------------------------------------------ |
-| **Phase 1** | ✅ Complete | Error tracking, filesystem detection, success metrics        |
-| **Phase 2** | ✅ Complete | Graceful I/O fallback, error export, detailed reports        |
-| **Phase 3** | ✅ Complete | NFS/SMB optimization detection, performance analysis         |
-| **Phase 4** | ✅ Complete | Real-time TUI dashboard, interactive mode, integration tests |
-| **Future**  | 🔮 Vision   | Web dashboard, REST API, cloud integration                   |
+| Phase | Status | Features |
+|-------|--------|----------|
+| **Phase 1** | ✅ Complete | Error tracking, filesystem detection, success metrics |
+| **Phase 2** | ✅ Complete | Graceful I/O fallback, error export, detailed reports |
+| **Phase 3** | ✅ Complete | NFS/SMB optimization detection, performance analysis |
+| **v25.13.1** | ✅ Complete | DPX/EXR profiles, profile filtering, byte size display |
+| **Phase 4A** | ✅ Complete | TUI real-time dashboard, interactive monitoring, SSH-compatible |
+| **Phase 4B/C** | 🚀 In Development | REST API, web interface, testing infrastructure |
+| **Future** | 🔮 Vision | Cloud integration, distributed testing, ML anomaly detection |
 
-Current Version: **25.13.0**
+Current Version: **25.14.0** (Phase 4A TUI Real-Time Dashboard)
+Latest Release: [v25.14.0](https://github.com/ssotoa70/vframetest/releases/tag/v25.14.0)
 
 ---
 
@@ -306,11 +315,14 @@ GNU General Public License v2 - See [COPYING](COPYING) for details.
 ## 🙏 Acknowledgments
 
 - **Original**: Tuxera Inc. / SGI for foundational frame-based testing approach
-- **Contributors**: Community members who have contributed fixes and features
+- **Phase 4A Architecture**: Special thanks to **AnxietyLab** for architecting the TUI Real-Time Dashboard that powers v25.14.0 and shaped Phase 4's vision
+- **Contributors**: Community members who have contributed fixes, features, and ideas
 - **Users**: Thank you for using and improving vframetest
+
+See [CONTRIBUTORS.md](CONTRIBUTORS.md) for detailed recognition of architectural and design contributions.
 
 ---
 
-**Repository**: [AnxietyLab/vframetest](https://github.com/AnxietyLab/vframetest)
-**Latest Version**: 25.13.0
-**Documentation**: [Complete Guides](docs/) | [FAQ](docs/FAQ.md)
+**Repository**: [ssotoa70/vframetest](https://github.com/ssotoa70/vframetest)
+**Latest Release**: [v25.14.0](https://github.com/ssotoa70/vframetest/releases/tag/v25.14.0)
+**Documentation**: [Complete Guides](docs/) | [Wiki](/wiki) | [FAQ](docs/FAQ.md)
