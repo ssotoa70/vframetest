@@ -280,11 +280,14 @@ GNU General Public License v2 - See [COPYING](COPYING) for details.
 ## 🙏 Acknowledgments
 
 - **Original**: Tuxera Inc. / SGI for foundational frame-based testing approach
-- **Contributors**: Community members who have contributed fixes and features
+- **Phase 4A Architecture**: Special thanks to **AnxietyLab** for architecting the TUI Real-Time Dashboard that powers v25.14.0 and shaped Phase 4's vision
+- **Contributors**: Community members who have contributed fixes, features, and ideas
 - **Users**: Thank you for using and improving vframetest
+
+See [CONTRIBUTORS.md](CONTRIBUTORS.md) for detailed recognition of architectural and design contributions.
 
 ---
 
 **Repository**: [ssotoa70/vframetest](https://github.com/ssotoa70/vframetest)
-**Latest Release**: [v25.11.23](https://github.com/ssotoa70/vframetest/releases/tag/v25.11.23)
+**Latest Release**: [v25.14.0](https://github.com/ssotoa70/vframetest/releases/tag/v25.14.0)
 **Documentation**: [Complete Guides](docs/) | [Wiki](/wiki) | [FAQ](docs/FAQ.md)

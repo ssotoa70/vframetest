@@ -61,6 +61,13 @@ All notable changes to vframetest are documented in this file.
 - Makefile: Version bumped to 25.14.0
 - Phase 4A completion marks major feature milestone
 
+#### Special Recognition
+- **Architecture & Design**: AnxietyLab
+  - Architected Phase 4A TUI Real-Time Dashboard
+  - Designed modular component system (core, state, render, input)
+  - Demonstrated professional implementation standards
+  - Shaped entire Phase 4+ roadmap vision
+
 ---
 
 ## [25.13.1] - 2025-11-30
