@@ -61,6 +61,8 @@ typedef struct opts_t {
 	size_t fps;
 	size_t header_size;
 
+	const char *list_profiles_filter;  /* Filter for --list-profiles */
+
 	unsigned int reverse : 1;
 	unsigned int random : 1;
 	unsigned int csv : 1;
