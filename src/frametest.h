@@ -61,6 +61,7 @@ typedef struct opts_t {
 	unsigned int frametimes : 1;
 	unsigned int histogram : 1;
 	unsigned int single_file : 1;
+	unsigned int tui : 1;  /* Enable Terminal User Interface (Phase 4A) */
 } opts_t;
 
 /* I/O mode enumeration */
