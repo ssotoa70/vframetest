@@ -9,14 +9,26 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
-#include <pthread.h>
 #include <time.h>
 #include <ctype.h>
-#include <errno.h>
+
+/* Cross-platform socket includes */
+#ifdef _WIN32
+  #include <winsock2.h>
+  #include <ws2tcpip.h>
+  #pragma comment(lib, "ws2_32.lib")
+  #define close(s) closesocket(s)
+  #define SOCKET_ERROR SOCKET_ERROR
+  typedef int socklen_t;
+#else
+  #include <unistd.h>
+  #include <sys/socket.h>
+  #include <netinet/in.h>
+  #include <arpa/inet.h>
+  #include <pthread.h>
+  #include <errno.h>
+  #define SOCKET_ERROR -1
+#endif
 
 /* ============================================================================
  * Server Lifecycle Functions
@@ -64,13 +76,22 @@ int http_server_start(http_server_t *server)
     if (!server || server->listen_socket >= 0)
         return -1;
 
+#ifdef _WIN32
+    /* Windows socket initialization */
+    WSADATA wsa_data;
+    if (WSAStartup(MAKEWORD(2, 2), &wsa_data) != 0) {
+        fprintf(stderr, "WSAStartup failed\n");
+        return -1;
+    }
+#endif
+
     struct sockaddr_in addr;
     int reuse = 1;
 
     /* Create socket */
     server->listen_socket = socket(AF_INET, SOCK_STREAM, 0);
-    if (server->listen_socket < 0) {
-        perror("socket");
+    if (server->listen_socket == SOCKET_ERROR) {
+        fprintf(stderr, "socket creation failed\n");
         return -1;
     }
 
@@ -116,6 +137,10 @@ void http_server_stop(http_server_t *server)
         close(server->listen_socket);
         server->listen_socket = -1;
     }
+
+#ifdef _WIN32
+    WSACleanup();
+#endif
 }
 
 void http_server_destroy(http_server_t *server)
