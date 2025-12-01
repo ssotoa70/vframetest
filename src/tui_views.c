@@ -530,6 +530,36 @@ void tui_view_config(tui_app_state_t *state, tui_metrics_t *metrics)
 	case TUI_PROFILE_8K:
 		frame_size = 7680 * 4320 * 2;
 		break;
+	case TUI_PROFILE_DPX_2K:
+		frame_size = 2048 * 1556 * 4; /* 10-bit packed */
+		break;
+	case TUI_PROFILE_DPX_FULLHD:
+		frame_size = 1920 * 1080 * 4;
+		break;
+	case TUI_PROFILE_DPX_4K:
+		frame_size = 3840 * 2160 * 4;
+		break;
+	case TUI_PROFILE_DPX_8K:
+		frame_size = 7680 * 4320 * 4;
+		break;
+	case TUI_PROFILE_EXR_FULLHD_HALF:
+		frame_size = 1920 * 1080 * 6; /* Half-precision */
+		break;
+	case TUI_PROFILE_EXR_4K_HALF:
+		frame_size = 3840 * 2160 * 6;
+		break;
+	case TUI_PROFILE_EXR_8K_HALF:
+		frame_size = 7680 * 4320 * 6;
+		break;
+	case TUI_PROFILE_EXR_FULLHD_FLOAT:
+		frame_size = 1920 * 1080 * 12; /* Float-precision */
+		break;
+	case TUI_PROFILE_EXR_4K_FLOAT:
+		frame_size = 3840 * 2160 * 12;
+		break;
+	case TUI_PROFILE_EXR_8K_FLOAT:
+		frame_size = 7680 * 4320 * 12;
+		break;
 	default:
 		frame_size = 1920 * 1080 * 2;
 		break;

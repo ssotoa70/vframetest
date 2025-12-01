@@ -58,6 +58,16 @@ typedef enum tui_profile_t {
 	TUI_PROFILE_2K,
 	TUI_PROFILE_4K,
 	TUI_PROFILE_8K,
+	TUI_PROFILE_DPX_2K,
+	TUI_PROFILE_DPX_FULLHD,
+	TUI_PROFILE_DPX_4K,
+	TUI_PROFILE_DPX_8K,
+	TUI_PROFILE_EXR_FULLHD_HALF,
+	TUI_PROFILE_EXR_4K_HALF,
+	TUI_PROFILE_EXR_8K_HALF,
+	TUI_PROFILE_EXR_FULLHD_FLOAT,
+	TUI_PROFILE_EXR_4K_FLOAT,
+	TUI_PROFILE_EXR_8K_FLOAT,
 	TUI_PROFILE_CUSTOM,
 	TUI_PROFILE_COUNT
 } tui_profile_t;
@@ -296,6 +306,11 @@ const char *tui_test_type_name(tui_test_type_t type);
  * Get access order name string
  */
 const char *tui_access_order_name(tui_access_order_t order);
+
+/*
+ * Convert TUI profile selection to actual profile name for frametest
+ */
+const char *tui_profile_to_name(tui_profile_t profile);
 
 /*
  * Reset state for a new test (clear history, reset counters)

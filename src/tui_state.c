@@ -18,7 +18,11 @@
 
 /* String constants for display */
 static const char *profile_names[] = { "SD", "HD", "FULLHD", "2K",
-				       "4K", "8K", "Custom" };
+				       "4K", "8K", "DPX-2K", "DPX-FULLHD",
+				       "DPX-4K", "DPX-8K", "EXR-FULLHD-half",
+				       "EXR-4K-half", "EXR-8K-half",
+				       "EXR-FULLHD-float", "EXR-4K-float",
+				       "EXR-8K-float", "Custom" };
 
 static const char *test_type_names[] = { "Write", "Read", "Empty",
 					 "Streaming" };
@@ -44,6 +48,49 @@ const char *tui_access_order_name(tui_access_order_t order)
 	if (order < TUI_ACCESS_ORDER_COUNT)
 		return access_order_names[order];
 	return "Unknown";
+}
+
+const char *tui_profile_to_name(tui_profile_t profile)
+{
+	/* Map TUI profile selection to actual frametest profile names */
+	switch (profile) {
+	case TUI_PROFILE_SD:
+		return "SD-24bit";
+	case TUI_PROFILE_HD:
+		return "HD-24bit";
+	case TUI_PROFILE_FULLHD:
+		return "FULLHD-24bit";
+	case TUI_PROFILE_2K:
+		return "2K-24bit";
+	case TUI_PROFILE_4K:
+		return "4K-24bit";
+	case TUI_PROFILE_8K:
+		return "8K-24bit";
+	case TUI_PROFILE_DPX_2K:
+		return "DPX-2K-10bit";
+	case TUI_PROFILE_DPX_FULLHD:
+		return "DPX-FULLHD-10bit";
+	case TUI_PROFILE_DPX_4K:
+		return "DPX-4K-10bit";
+	case TUI_PROFILE_DPX_8K:
+		return "DPX-8K-10bit";
+	case TUI_PROFILE_EXR_FULLHD_HALF:
+		return "EXR-FULLHD-half";
+	case TUI_PROFILE_EXR_4K_HALF:
+		return "EXR-4K-half";
+	case TUI_PROFILE_EXR_8K_HALF:
+		return "EXR-8K-half";
+	case TUI_PROFILE_EXR_FULLHD_FLOAT:
+		return "EXR-FULLHD-float";
+	case TUI_PROFILE_EXR_4K_FLOAT:
+		return "EXR-4K-float";
+	case TUI_PROFILE_EXR_8K_FLOAT:
+		return "EXR-8K-float";
+	case TUI_PROFILE_CUSTOM:
+		return "custom";
+	default:
+		return "FULLHD-24bit";
+	}
 }
 
 void tui_config_init(tui_test_config_t *config)

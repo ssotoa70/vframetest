@@ -245,7 +245,10 @@ static void render_config(tui_app_state_t *state, int width, int start_row)
 
 	/* Profile */
 	is_selected = (state->selected_field == TUI_CONFIG_PROFILE);
-	const char *profiles[] = { "SD", "HD", "FULLHD", "2K", "4K", "8K" };
+	const char *profiles[] = { "SD", "HD", "FULLHD", "2K", "4K", "8K",
+				   "DPX-2K", "DPX-FHD", "DPX-4K", "DPX-8K",
+				   "EXR-FHD-h", "EXR-4K-h", "EXR-8K-h",
+				   "EXR-FHD-f", "EXR-4K-f", "EXR-8K-f" };
 
 	screen_move(&scr, row, 2);
 	if (is_selected) {
@@ -257,7 +260,7 @@ static void render_config(tui_app_state_t *state, int width, int start_row)
 	SET_TEXT();
 	screen_print(&scr, " Profile:      ");
 
-	for (int i = 0; i < 6; i++) {
+	for (int i = 0; i < 16; i++) {
 		if (i == (int)state->config.profile) {
 			SET_SUCCESS();
 			screen_print(&scr, "(*)");
@@ -265,7 +268,12 @@ static void render_config(tui_app_state_t *state, int width, int start_row)
 			SET_TEXT();
 			screen_print(&scr, "(o)");
 		}
-		screen_printf(&scr, " %s  ", profiles[i]);
+		screen_printf(&scr, " %s ", profiles[i]);
+		if ((i + 1) % 4 == 0 && i < 15) {
+			/* Wrap to next line for readability */
+			row++;
+			screen_move(&scr, row, 18);
+		}
 	}
 	RESET_COLOR();
 	row++;
