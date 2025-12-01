@@ -250,11 +250,12 @@ We welcome contributions! See [CONTRIBUTING.md](docs/CONTRIBUTING.md) for:
 | **Phase 2** | ✅ Complete | Graceful I/O fallback, error export, detailed reports |
 | **Phase 3** | ✅ Complete | NFS/SMB optimization detection, performance analysis |
 | **v25.13.1** | ✅ Complete | DPX/EXR profiles, profile filtering, byte size display |
-| **Phase 4** | 🚀 In Development | TUI real-time dashboard, REST API, web interface |
+| **Phase 4A** | ✅ Complete | TUI real-time dashboard, interactive monitoring, SSH-compatible |
+| **Phase 4B/C** | 🚀 In Development | REST API, web interface, testing infrastructure |
 | **Future** | 🔮 Vision | Cloud integration, distributed testing, ML anomaly detection |
 
-Current Version: **25.13.1** (Professional Frame Formats - DPX/EXR Profiles)
-Latest Release: [v25.13.1](https://github.com/ssotoa70/vframetest/releases/tag/v25.13.1)
+Current Version: **25.14.0** (Phase 4A TUI Real-Time Dashboard)
+Latest Release: [v25.14.0](https://github.com/ssotoa70/vframetest/releases/tag/v25.14.0)
 
 ---
 
