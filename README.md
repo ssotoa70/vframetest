@@ -254,8 +254,8 @@ We welcome contributions! See [CONTRIBUTING.md](docs/CONTRIBUTING.md) for:
 | **Phase 4B/C** | 🚀 In Development | REST API, web interface, testing infrastructure |
 | **Future** | 🔮 Vision | Cloud integration, distributed testing, ML anomaly detection |
 
-Current Version: **25.14.0** (Phase 4A TUI Real-Time Dashboard)
-Latest Release: [v25.14.0](https://github.com/ssotoa70/vframetest/releases/tag/v25.14.0)
+Current Version: **25.15.0** (Phase 4A: Terminal User Interface Complete)
+Latest Release: [v25.15.0](https://github.com/ssotoa70/vframetest/releases/tag/v25.15.0)
 
 ---
 
@@ -280,7 +280,7 @@ GNU General Public License v2 - See [COPYING](COPYING) for details.
 ## 🙏 Acknowledgments
 
 - **Original**: Tuxera Inc. / SGI for foundational frame-based testing approach
-- **Phase 4A Architecture**: Special thanks to **AnxietyLab** for architecting the TUI Real-Time Dashboard that powers v25.14.0 and shaped Phase 4's vision
+- **Phase 4A Architecture**: Special thanks to **AnxietyLab** for architecting the TUI Real-Time Dashboard that powers v25.15.0 and shaped Phase 4's vision
 - **Contributors**: Community members who have contributed fixes, features, and ideas
 - **Users**: Thank you for using and improving vframetest
 
@@ -289,5 +289,5 @@ See [CONTRIBUTORS.md](CONTRIBUTORS.md) for detailed recognition of architectural
 ---
 
 **Repository**: [ssotoa70/vframetest](https://github.com/ssotoa70/vframetest)
-**Latest Release**: [v25.14.0](https://github.com/ssotoa70/vframetest/releases/tag/v25.14.0)
+**Latest Release**: [v25.15.0](https://github.com/ssotoa70/vframetest/releases/tag/v25.15.0)
 **Documentation**: [Complete Guides](docs/) | [Wiki](/wiki) | [FAQ](docs/FAQ.md)

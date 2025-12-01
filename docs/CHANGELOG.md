@@ -2,9 +2,9 @@
 
 All notable changes to vframetest are documented in this file.
 
-## [25.14.0] - 2025-11-30
+## [25.15.0] - 2025-12-01
 
-### Phase 4A: TUI Real-Time Dashboard ✅
+### Phase 4A: Terminal User Interface (TUI) - Complete Implementation ✅
 
 #### Added
 - **Terminal User Interface (TUI)** for real-time test monitoring
@@ -57,9 +57,18 @@ All notable changes to vframetest are documented in this file.
 - src/tty.h/c - TTY control
 - tests/test_tui.c - TUI unit tests
 
+#### Implementation Details
+- **TUI Integration**: 5,545 lines of production-ready code
+- **Files Added**: 15 source files (TUI core, state, rendering, input, terminal abstraction)
+- **Terminal Abstraction**: ANSI escape codes, no external dependencies
+- **Platform Support**: macOS, Linux, Windows with graceful fallback
+- **Integration**: --tui flag enables TUI mode, graceful fallback to text if unsupported
+- **Summary Display**: Beautiful formatted final results with all metrics
+
 #### Version Changes
-- Makefile: Version bumped to 25.14.0
-- Phase 4A completion marks major feature milestone
+- Makefile: Version bumped to 25.15.0
+- Phase 4A complete implementation marks major feature milestone
+- First public release with full TUI support
 
 #### Special Recognition
 - **Architecture & Design**: AnxietyLab
@@ -67,6 +76,14 @@ All notable changes to vframetest are documented in this file.
   - Designed modular component system (core, state, render, input)
   - Demonstrated professional implementation standards
   - Shaped entire Phase 4+ roadmap vision
+
+---
+
+## [25.14.0] - 2025-11-30
+
+### Phase 4A: Planning & Preparation ℹ️
+
+**Note**: This release was announced with Phase 4A features but the actual TUI integration was completed in v25.15.0. v25.14.0 served as the foundation/planning release.
 
 ---
 
