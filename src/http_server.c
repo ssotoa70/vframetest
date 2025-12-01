@@ -3,7 +3,16 @@
  *
  * Phase 4B: REST API HTTP Server Implementation
  * Socket-based HTTP server with request parsing and routing
+ *
+ * Status: Week 1 foundation - not yet integrated into main binary
  */
+
+/* Feature test macros for POSIX compliance (must be before any includes) */
+#if !defined(_WIN32)
+  #define _POSIX_C_SOURCE 200809L
+  #define _DEFAULT_SOURCE
+  #define _BSD_SOURCE
+#endif
 
 #include "http_server.h"
 #include <stdio.h>
@@ -21,13 +30,21 @@
   #define SOCKET_ERROR SOCKET_ERROR
   typedef int socklen_t;
 #else
+  /* POSIX: Linux, macOS, etc. */
   #include <unistd.h>
   #include <sys/socket.h>
   #include <netinet/in.h>
   #include <arpa/inet.h>
   #include <pthread.h>
   #include <errno.h>
+  #include <fcntl.h>
   #define SOCKET_ERROR -1
+  typedef int SOCKET;
+#endif
+
+/* Ensure INADDR_LOOPBACK is defined (127.0.0.1) */
+#ifndef INADDR_LOOPBACK
+  #define INADDR_LOOPBACK 0x7f000001U
 #endif
 
 /* ============================================================================

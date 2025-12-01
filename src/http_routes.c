@@ -3,7 +3,13 @@
  *
  * Phase 4B: HTTP Routes Implementation
  * Placeholder handlers for Phase 4B endpoints
+ *
+ * Status: Week 1 foundation - not yet integrated into main binary
  */
+
+/* Feature test macros for POSIX compliance */
+#define _POSIX_C_SOURCE 200809L
+#define _DEFAULT_SOURCE
 
 #include "http_routes.h"
 #include <stdio.h>
