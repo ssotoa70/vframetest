@@ -11,6 +11,19 @@
  * (at your option) any later version.
  */
 
+/* Feature test macros for POSIX compliance (MUST be before any system includes) */
+#if !defined(_WIN32)
+#if !defined(_POSIX_C_SOURCE)
+#define _POSIX_C_SOURCE 200809L
+#endif
+#if !defined(_DEFAULT_SOURCE)
+#define _DEFAULT_SOURCE
+#endif
+#if defined(__APPLE__)
+#define _DARWIN_C_SOURCE 1
+#endif
+#endif
+
 #include "tty.h"
 
 #include <stdio.h>
@@ -120,15 +133,6 @@ int tty_was_resized(void)
 /* ============================================================================
  * POSIX Implementation (Linux, macOS, etc.)
  * ============================================================================ */
-
-/* Enable POSIX signal handling (sigaction, sigemptyset, SA_RESTART)
- * MUST be defined BEFORE any system includes */
-#if !defined(_POSIX_C_SOURCE)
-#define _POSIX_C_SOURCE 200809L
-#endif
-#if !defined(_DEFAULT_SOURCE)
-#define _DEFAULT_SOURCE
-#endif
 
 #include <unistd.h>
 #include <signal.h>
