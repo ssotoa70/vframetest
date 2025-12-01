@@ -2,6 +2,52 @@
 
 All notable changes to vframetest are documented in this file.
 
+## [25.13.1] - 2025-11-30
+
+### Bug Release: DPX/EXR Profile Addition & Profile Filtering
+
+#### Added
+- **DPX Frame Profiles** - Professional 10/12-bit uncompressed profiles
+  - DPX-2K-10bit (2048×1556, 4 bytes/pixel, 8KB header)
+  - DPX-FULLHD-10bit (1920×1080, 4 bytes/pixel, 8KB header)
+  - DPX-4K-10bit (3840×2160, 4 bytes/pixel, 8KB header)
+  - DPX-8K-10bit (7680×4320, 4 bytes/pixel, 8KB header)
+
+- **EXR Frame Profiles** - Professional float/half-precision profiles
+  - EXR-FULLHD-half, EXR-4K-half, EXR-8K-half (6 bytes/pixel, no header)
+  - EXR-FULLHD-float, EXR-4K-float, EXR-8K-float (12 bytes/pixel, no header)
+
+- **Profile Filtering** - `--list-profiles-filter` flag for filtering by name prefix
+  - Usage: `vframetest --list-profiles-filter DPX` - show only DPX profiles
+  - Works standalone or with `--list-profiles`
+
+#### Enhanced
+- **--list-profiles Output** - Now displays:
+  - Raw size (width × height × bpp + header)
+  - Aligned size (4096-byte aligned for Direct I/O)
+  - Useful for capacity planning and performance analysis
+
+#### Changed
+- Version bumped to 25.13.1
+- opts_t structure: Added list_profiles_filter field
+- list_profiles() function signature: Now accepts optional filter parameter
+
+#### Test Results
+- ✅ All 100+ unit tests passing
+- ✅ New DPX/EXR profile assertions passing
+- ✅ Zero compiler warnings
+- ✅ Cross-platform compatible (macOS, Linux, Windows)
+
+#### Files Modified
+- src/profile.h - Added PROF_DPX and PROF_EXR enum types
+- src/profile.c - Added 10 new profile definitions
+- src/frametest.h - Added filter support to options
+- src/frametest.c - Enhanced list_profiles with filtering and sizes
+- tests/test_profile.c - New profile validation tests
+- Makefile - Version updated to 25.13.1
+
+---
+
 ## [25.13.0] - 2025-11-28
 
 ### Phase 3: NFS/SMB Optimization Detection ✅

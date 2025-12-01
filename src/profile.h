@@ -34,6 +34,8 @@ enum ProfileType {
 	PROF_2K,
 	PROF_4K,
 	PROF_8K,
+	PROF_DPX,
+	PROF_EXR,
 };
 
 typedef struct profile_t {

@@ -57,7 +57,7 @@ vframetest -w FULLHD-24bit -t 4 -n 100 test-data
 ### Core Benchmarking
 - ✅ **Frame-Based Testing** - Accurate video workload simulation
 - ✅ **Multi-Threading** - Configurable parallel testing (1-16+ threads)
-- ✅ **Multiple Profiles** - SD, HD, 4K, 8K + custom resolutions
+- ✅ **Multiple Profiles** - SD, HD, FULLHD, 4K, 8K, DPX, EXR + custom resolutions
 - ✅ **Rich Metrics** - FPS, throughput (MiB/s), completion times
 
 ### Phase 1: Error Tracking & Diagnostics
@@ -80,6 +80,12 @@ vframetest -w FULLHD-24bit -t 4 -n 100 test-data
 - ✅ **Network Timeout Handling** - Configurable timeouts for network filesystems
 - ✅ **Performance Metrics** - Min/max/avg frame times with trend analysis
 - ✅ **Enhanced Output** - CSV and JSON include optimization metrics
+
+### Professional Frame Formats (v25.13.1+)
+- ✅ **DPX Profiles** - 10/12-bit professional uncompressed (DPX-2K, DPX-FULLHD, DPX-4K, DPX-8K)
+- ✅ **EXR Profiles** - Half/float-precision professional formats (EXR-FULLHD, EXR-4K, EXR-8K)
+- ✅ **Profile Filtering** - `--list-profiles-filter` for finding profiles by name
+- ✅ **Byte Size Display** - Raw and aligned sizes in `--list-profiles` output
 
 ### Professional Infrastructure
 - ✅ **Multi-Platform** - macOS (arm64/x86_64), Linux, Windows (x86_64/i686)
@@ -243,11 +249,12 @@ We welcome contributions! See [CONTRIBUTING.md](docs/CONTRIBUTING.md) for:
 | **Phase 1** | ✅ Complete | Error tracking, filesystem detection, success metrics |
 | **Phase 2** | ✅ Complete | Graceful I/O fallback, error export, detailed reports |
 | **Phase 3** | ✅ Complete | NFS/SMB optimization detection, performance analysis |
-| **Phase 4** | 🚀 In Development | Web dashboard, real-time metrics, REST API |
+| **v25.13.1** | ✅ Complete | DPX/EXR profiles, profile filtering, byte size display |
+| **Phase 4** | 🚀 In Development | TUI real-time dashboard, REST API, web interface |
 | **Future** | 🔮 Vision | Cloud integration, distributed testing, ML anomaly detection |
 
-Current Version: **25.13.0** (Phase 3 Complete - NFS/SMB Optimization)
-Latest Release: [v25.13.0](https://github.com/ssotoa70/vframetest/releases/tag/v25.13.0)
+Current Version: **25.13.1** (Professional Frame Formats - DPX/EXR Profiles)
+Latest Release: [v25.13.1](https://github.com/ssotoa70/vframetest/releases/tag/v25.13.1)
 
 ---
 

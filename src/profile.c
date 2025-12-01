@@ -52,6 +52,18 @@ static profile_t profiles[] = {
 	{ "8K-16bit", PROF_8K, 7680, 4320, 2, 0 },
 	{ "8K-24bit", PROF_8K, 7680, 4320, 3, 0 },
 	{ "8K-32bit", PROF_8K, 7680, 4320, 4, 0 },
+	/* DPX Profiles (10/12-bit packed, 4 bytes/pixel, 8KB header) */
+	{ "DPX-2K-10bit", PROF_DPX, 2048, 1556, 4, 8192 },
+	{ "DPX-FULLHD-10bit", PROF_DPX, 1920, 1080, 4, 8192 },
+	{ "DPX-4K-10bit", PROF_DPX, 3840, 2160, 4, 8192 },
+	{ "DPX-8K-10bit", PROF_DPX, 7680, 4320, 4, 8192 },
+	/* EXR Profiles (16-bit half and 32-bit float, no header) */
+	{ "EXR-FULLHD-half", PROF_EXR, 1920, 1080, 6, 0 },
+	{ "EXR-4K-half", PROF_EXR, 3840, 2160, 6, 0 },
+	{ "EXR-8K-half", PROF_EXR, 7680, 4320, 6, 0 },
+	{ "EXR-FULLHD-float", PROF_EXR, 1920, 1080, 12, 0 },
+	{ "EXR-4K-float", PROF_EXR, 3840, 2160, 12, 0 },
+	{ "EXR-8K-float", PROF_EXR, 7680, 4320, 12, 0 },
 	{ "empty", PROF_CUSTOM, 0, 0, 0, 0 },
 };
 static size_t profile_cnt = sizeof(profiles) / sizeof(profiles[0]);
