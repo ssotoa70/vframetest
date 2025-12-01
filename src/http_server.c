@@ -605,7 +605,7 @@ void http_url_decode(char *url)
 
     while (*src) {
         if (*src == '%' && src[1] && src[2]) {
-            int val = 0;
+            unsigned int val = 0;
             sscanf(src + 1, "%2x", &val);
             *dst = (char)val;
             src += 3;
