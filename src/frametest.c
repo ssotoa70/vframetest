@@ -814,6 +814,8 @@ static struct option long_opts[] = {
 	{ "frametimes", no_argument, 0, 0 },
 	{ "histogram", no_argument, 0, 0 },
 	{ "tui", no_argument, 0, 0 },
+	{ "interactive", no_argument, 0, 'i' },
+	{ "history-size", required_argument, 0, 0 },
 	{ "version", no_argument, 0, 'V' },
 	{ "help", no_argument, 0, 'h' },
 	{ 0, 0, 0, 0 },
@@ -840,7 +842,9 @@ static struct long_opt_desc long_opt_descs[] = {
 	{ "times", "Show breakdown of completion times (open/io/close)" },
 	{ "frametimes", "Show detailed timings of every frames in CSV format" },
 	{ "histogram", "Show histogram of completion times at the end" },
-	{ "tui", "Enable Terminal User Interface (real-time dashboard)" },
+	{ "tui", "Show real-time TUI dashboard during test" },
+	{ "interactive", "Launch interactive TTY mode with config menu" },
+	{ "history-size", "Frame history depth for interactive mode (default 10000)" },
 	{ "version", "Display version information" },
 	{ "help", "Display this help" },
 	{ 0, 0 },
@@ -1601,8 +1605,6 @@ int main(int argc, char **argv)
 				opts.times = 1;
 			if (!strcmp(long_opts[opt_index].name, "frametimes"))
 				opts.frametimes = 1;
-			if (!strcmp(long_opts[opt_index].name, "tui"))
-				opts.tui = 1;
 			if (!strcmp(long_opts[opt_index].name, "header")) {
 				if (opt_parse_header_size(&opts, optarg))
 					goto invalid_long;
@@ -1610,6 +1612,17 @@ int main(int argc, char **argv)
 			if (!strcmp(long_opts[opt_index].name, "list-profiles-filter")) {
 				opts.list_profiles_filter = optarg;
 			}
+			if (!strcmp(long_opts[opt_index].name, "history-size")) {
+				if (sscanf(optarg, "%zu", &opts.history_size) != 1) {
+					fprintf(stderr,
+						"ERROR: Invalid history size: %s\n",
+						optarg);
+					goto invalid_long;
+				}
+			}
+			break;
+		case 'i':
+			opts.interactive = 1;
 			break;
 		case 'h':
 			usage(argv[0]);

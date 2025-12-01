@@ -73,6 +73,8 @@ typedef struct opts_t {
 	unsigned int histogram : 1;
 	unsigned int single_file : 1;
 	unsigned int tui : 1;  /* Enable Terminal User Interface (Phase 4A) */
+	unsigned int interactive : 1; /* Launch interactive config menu */
+	size_t history_size; /* Frame history depth for interactive mode */
 } opts_t;
 
 /* I/O mode enumeration */
