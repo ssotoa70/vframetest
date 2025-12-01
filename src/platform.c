@@ -463,9 +463,10 @@ int platform_detect_filesystem(const char *path)
 		return 3; /* OTHER */
 	}
 
-	if (GetVolumeInformation(drive, NULL, 0, NULL, NULL, NULL,
-	                        fs_name, sizeof(fs_name))) {
-		if (strcmp(fs_name, "NTFS") == 0 || strcmp(fs_name, "FAT32") == 0)
+	if (GetVolumeInformation(drive, NULL, 0, NULL, NULL, NULL, fs_name,
+				 sizeof(fs_name))) {
+		if (strcmp(fs_name, "NTFS") == 0 ||
+		    strcmp(fs_name, "FAT32") == 0)
 			return 0; /* LOCAL */
 		/* Network filesystems typically have different names */
 		if (strcmp(fs_name, "SMB") == 0)
@@ -510,7 +511,7 @@ int platform_has_direct_io(platform_handle_t fd)
 }
 
 /* Get error string from errno value */
-const char* platform_strerror(int error_code)
+const char *platform_strerror(int error_code)
 {
 	return strerror(error_code);
 }

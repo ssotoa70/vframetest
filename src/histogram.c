@@ -18,9 +18,6 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 
-#ifndef assert
-#include <assert.h>
-#endif
 #include <stdio.h>
 #include <stdint.h>
 #include "tester.h"
@@ -64,10 +61,9 @@ static inline size_t time_get_sub_bucket(size_t bucket, uint64_t time)
 
 	if (max - min == 0)
 		return 0;
-	assert(time >= min && time < max);
 	if (time < min)
 		return 0;
-	if (time > max)
+	if (time >= max)
 		return SUB_BUCKET_CNT - 1;
 
 	time = time - min;

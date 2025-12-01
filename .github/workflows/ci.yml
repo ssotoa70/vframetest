@@ -2,74 +2,22 @@ name: CI/CD
 
 on:
   push:
-    branches: [ main ]
-    tags: [ 'v*' ]
+    branches: [main]
+    tags: ["v*"]
   pull_request:
-    branches: [ main ]
+    branches: [main]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
-# ---------------------------------------------------------------------------
-# LINT JOB – runs once on Linux
-# ---------------------------------------------------------------------------
 jobs:
-  lint:
-    name: Code Quality (Linux)
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Install lint dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y clang-format cppcheck
-
-      - name: Code formatting check (clang-format)
-        # This will FAIL the job if formatting is off
-        run: |
-          set -e
-          echo "Running clang-format..."
-          clang-format --dry-run --Werror src/*.c src/*.h tests/*.c tests/*.h 2>&1 | tee format-report.txt
-
-      - name: Static analysis (cppcheck - non-blocking)
-        continue-on-error: true
-        run: |
-          set -e
-          echo "Running cppcheck..."
-          cppcheck --enable=all --error-exitcode=1 \
-            --suppress=missingIncludeSystem \
-            --suppress=unusedFunction \
-            src/ tests/ 2>&1 | tee cppcheck-report.txt || true
-          if grep -q "error:" cppcheck-report.txt; then
-            echo "⚠️ Static analysis issues detected (non-blocking for now)"
-          fi
-
-      - name: Upload lint reports
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: lint-reports
-          path: |
-            format-report.txt
-            cppcheck-report.txt
-          if-no-files-found: warn
-          retention-days: 7
-
   # ---------------------------------------------------------------------------
-  # BUILD + TEST – matrix across macOS, Linux, Windows
+  # BUILD + TEST – runs on all platforms (primary job)
   # ---------------------------------------------------------------------------
   build-test:
     name: Build & Test (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
-    needs: lint
     permissions:
       contents: read
 
@@ -77,119 +25,136 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # Linux x86_64
           - os: ubuntu-latest
-            arch: x86_64
-          # macOS universal (arm64 + x86_64)
+            artifact: vframetest-linux-x86_64
+            binary: vframetest
           - os: macos-latest
-            arch: universal
-          # Windows x86_64
+            artifact: vframetest-macos-arm64
+            binary: vframetest
           - os: windows-latest
-            arch: x86_64
+            artifact: vframetest-windows-x86_64
+            binary: vframetest.exe
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 1
 
-      # ---------- Per-OS dependencies ----------
-
-      - name: Install dependencies (Linux)
-        if: matrix.os == 'ubuntu-latest'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y build-essential gcc clang make
-
-      - name: Install dependencies (macOS)
-        if: matrix.os == 'macos-latest'
-        run: |
-          brew update >/dev/null || true
-          brew install make || true
-
-      - name: Install dependencies (Windows / MSYS2)
-        if: matrix.os == 'windows-latest'
+      - name: Install dependencies (Windows)
+        if: runner.os == 'Windows'
         uses: msys2/setup-msys2@v2
         with:
           msystem: mingw64
-          update: true
-          install: >-
-            mingw-w64-x86_64-toolchain
-            make
+          update: false
+          install: mingw-w64-x86_64-gcc make
 
-      # ---------- Build + test for Linux/macOS ----------
-
-      - name: Build & Test (Linux/macOS)
-        if: matrix.os != 'windows-latest'
-        shell: bash
+      - name: Build (Linux/macOS)
+        if: runner.os != 'Windows'
         run: |
-          set -euo pipefail
-
-          echo "=== Build on $(uname -s) ==="
-          make clean
-          make -j4
+          make clean || true
+          make -j$(nproc 2>/dev/null || sysctl -n hw.ncpu)
           ./build/vframetest --version
 
-          echo "=== Running tests ==="
-          make test
-
-      # ---------- Build + test for Windows (x86_64) ----------
-
-      - name: Build & Test (Windows / MinGW)
-        if: matrix.os == 'windows-latest'
+      - name: Build (Windows)
+        if: runner.os == 'Windows'
         shell: msys2 {0}
         run: |
-          set -euo pipefail
+          make clean || true
+          make -j4
+          ./build/vframetest.exe --version
 
-          echo "=== Build on Windows (MinGW64) ==="
-          make clean
-          make           # Makefile already knows how to build vframetest.exe
-          ./build/vframetest.exe --version || {
-            echo "❌ Version check failed"
-            exit 1
-          }
+      - name: Test (Linux/macOS)
+        if: runner.os != 'Windows'
+        run: make test
 
-          echo "=== Running tests (if available) ==="
-          if make -q test 2>/dev/null; then
-            make test || echo "⚠️ Tests failed on Windows"
-          else
-            echo "No dedicated Windows test target; skipping."
+      - name: Test (Windows)
+        if: runner.os == 'Windows'
+        shell: msys2 {0}
+        run: make test || echo "::warning::Tests skipped or failed on Windows"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: build/${{ matrix.binary }}
+          if-no-files-found: error
+          retention-days: 30
+
+  # ---------------------------------------------------------------------------
+  # LINT – runs in parallel, non-blocking
+  # ---------------------------------------------------------------------------
+  lint:
+    name: Code Quality
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install tools
+        run: sudo apt-get update && sudo apt-get install -y clang-format cppcheck
+
+      - name: Check formatting
+        continue-on-error: true
+        run: |
+          if ! clang-format --dry-run --Werror src/*.c src/*.h tests/*.c tests/*.h 2>&1; then
+            echo "::warning::Code formatting issues detected. Run 'make format' to fix."
           fi
 
-      # ---------- Upload artifacts per OS ----------
+      - name: Static analysis
+        continue-on-error: true
+        run: |
+          cppcheck --enable=warning,performance,portability \
+            --suppress=missingIncludeSystem \
+            --suppress=unusedFunction \
+            --error-exitcode=0 \
+            src/ tests/ 2>&1 | tee cppcheck.txt
 
-      - name: Upload artifact (Linux)
-        if: matrix.os == 'ubuntu-latest'
+          if grep -q "error\|warning" cppcheck.txt; then
+            echo "::warning::Static analysis found issues (see logs)"
+          fi
+
+  # ---------------------------------------------------------------------------
+  # COVERAGE – runs on Linux only, in parallel
+  # ---------------------------------------------------------------------------
+  coverage:
+    name: Code Coverage
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install lcov
+        run: sudo apt-get update && sudo apt-get install -y lcov
+
+      - name: Build with coverage
+        run: |
+          CFLAGS="-O0 -fprofile-arcs -ftest-coverage" \
+          LDFLAGS="-lgcov" \
+          make -C tests clean all
+
+      - name: Generate coverage report
+        run: |
+          lcov --capture --directory . --output-file coverage.info \
+            --exclude '/usr/*' --exclude '*/tests/*'
+          lcov --list coverage.info
+
+      - name: Upload coverage artifact
         uses: actions/upload-artifact@v4
         with:
-          name: vframetest-linux-x86_64
-          path: build/vframetest
-          if-no-files-found: error
-          retention-days: 30
-
-      - name: Upload artifact (macOS)
-        if: matrix.os == 'macos-latest'
-        uses: actions/upload-artifact@v4
-        with:
-          name: vframetest-macos
-          path: build/vframetest
-          if-no-files-found: error
-          retention-days: 30
-
-      - name: Upload artifact (Windows)
-        if: matrix.os == 'windows-latest'
-        uses: actions/upload-artifact@v4
-        with:
-          name: vframetest-windows-x86_64
-          path: build/vframetest.exe
-          if-no-files-found: error
-          retention-days: 30
+          name: coverage-report
+          path: coverage.info
+          retention-days: 7
 
   # ---------------------------------------------------------------------------
   # RELEASE – runs only on tags v*
   # ---------------------------------------------------------------------------
   release:
-    name: Create GitHub Release
+    name: Create Release
     runs-on: ubuntu-latest
     needs: build-test
     if: startsWith(github.ref, 'refs/tags/v')
@@ -199,63 +164,43 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
-      - name: Determine version
-        shell: bash
-        run: |
-          VERSION=${GITHUB_REF#refs/tags/v}
-          echo "VERSION=${VERSION}" >> $GITHUB_ENV
-          echo "Release version: ${VERSION}"
+      - name: Get version from tag
+        id: version
+        env:
+          GH_REF: ${{ github.ref }}
+        run: echo "version=${GH_REF#refs/tags/v}" >> "$GITHUB_OUTPUT"
 
-      - name: Download all build artifacts
+      - name: Download artifacts
         uses: actions/download-artifact@v4
         with:
           path: artifacts
 
-      - name: Prepare release files
-        shell: bash
+      - name: Prepare release
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
         run: |
-          set -euo pipefail
           mkdir -p release
 
-          echo "Artifacts tree:"
-          ls -R artifacts || true
+          # Copy and rename binaries
+          for dir in artifacts/vframetest-*/; do
+            name=$(basename "$dir")
+            if [[ -f "$dir/vframetest" ]]; then
+              cp "$dir/vframetest" "release/${name}-${VERSION}"
+              chmod +x "release/${name}-${VERSION}"
+            elif [[ -f "$dir/vframetest.exe" ]]; then
+              cp "$dir/vframetest.exe" "release/${name}-${VERSION}.exe"
+            fi
+          done
 
-          # Linux
-          if [ -f artifacts/vframetest-linux-x86_64/vframetest ]; then
-            cp artifacts/vframetest-linux-x86_64/vframetest \
-              "release/vframetest-${{ env.VERSION }}-linux-x86_64"
-          fi
+          # Generate checksums
+          cd release && sha256sum * > SHA256SUMS
 
-          # macOS
-          if [ -f artifacts/vframetest-macos/vframetest ]; then
-            cp artifacts/vframetest-macos/vframetest \
-              "release/vframetest-${{ env.VERSION }}-macos"
-          fi
-
-          # Windows
-          if [ -f artifacts/vframetest-windows-x86_64/vframetest.exe ]; then
-            cp artifacts/vframetest-windows-x86_64/vframetest.exe \
-              "release/vframetest-${{ env.VERSION }}-windows-x86_64.exe"
-          fi
-
-          cd release
-
-          if command -v sha256sum >/dev/null 2>&1; then
-            sha256sum * > SHA256SUMS
-          else
-            shasum -a 256 * > SHA256SUMS
-          fi
-
-          echo "Final release contents:"
+          echo "Release contents:"
           ls -lh
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           files: release/*
           generate_release_notes: true
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

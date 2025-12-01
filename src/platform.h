@@ -95,7 +95,7 @@ int platform_has_direct_io(platform_handle_t fd);
 /* Get string representation of system error code
  * Returns: pointer to static error string
  */
-const char* platform_strerror(int error_code);
+const char *platform_strerror(int error_code);
 
 /* Phase 3: Timeout handling for network filesystems
  * Get recommended timeout in nanoseconds based on filesystem type

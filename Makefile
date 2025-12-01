@@ -32,6 +32,12 @@ $(BUILD_FOLDER):
 test:
 	make -C tests
 
+test-integration: $(BUILD_FOLDER)/vframetest
+	@echo "Running integration tests..."
+	VFRAMETEST=$(BUILD_FOLDER)/vframetest tests/integration_test.sh
+
+test-all: test test-integration
+
 dist:
 	git archive --prefix="vframetest-$(MAJOR).$(MINOR).$(PATCH)/" HEAD | gzip -9 > "vframetest-$(MAJOR).$(MINOR).$(PATCH).tar.gz"
 
@@ -54,4 +60,4 @@ clean:
 	rm -rf $(BUILD_FOLDER)
 	rm -f *.o vframetest vframetest.exe libvframetest.a *.gcno *.gcda *.gcov
 
-.PHONY: all clean release test dist win win64 coverage format
+.PHONY: all clean release test test-integration test-all dist win win64 coverage format

@@ -59,9 +59,7 @@ int test_histogram_time_bucket(void)
 int test_histogram_time_sub_bucket(void)
 {
 	size_t bucket;
-	size_t assertcnt;
 
-	EXPECT_ASSERTS(0);
 	bucket = time_get_sub_bucket(0, 1);
 	TEST_ASSERT_EQ(bucket, 0);
 
@@ -77,21 +75,17 @@ int test_histogram_time_sub_bucket(void)
 	bucket = time_get_sub_bucket(0, 199999);
 	TEST_ASSERT_EQ(bucket, 4);
 
-	/* This should cause and error */
-	EXPECT_ASSERTS(1);
+	/* Out of range - should return last sub bucket (fallback) */
 	bucket = time_get_sub_bucket(0, 2000000);
-	/* Fallback is the last sub bucket */
 	TEST_ASSERT_EQ(bucket, 4);
 
-	//assertcnt = unittest_asserts;
-	EXPECT_ASSERTS(1);
+	/* Time below bucket min - should return first sub bucket (fallback) */
 	bucket = time_get_sub_bucket(1, 0);
-	/* Fallback is the first sub bucket */
 	TEST_ASSERT_EQ(bucket, 0);
 
-	assertcnt = unittest_asserts;
+	/* Time within bucket range */
 	bucket = time_get_sub_bucket(4, 2000200);
-	TEST_ASSERT_EQ(assertcnt, unittest_asserts);
+	TEST_ASSERT_EQ(bucket, 0);
 
 	return 0;
 }
@@ -181,7 +175,7 @@ int test_histogram_print(void)
 
 	print_histogram(&res);
 
-	res.completion = &compl ;
+	res.completion = &compl;
 	print_histogram(&res);
 
 	test_ignore_printf(0);

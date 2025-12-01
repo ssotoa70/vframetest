@@ -29,7 +29,7 @@ extern unsigned long unittest_asserts;
 #define INIT_ASSERT() unsigned long unittest_asserts = 0;
 #define EXPECT_ASSERTS(X) unittest_asserts = (X);
 
-#include "platform.h"
+#include "../src/platform.h"
 
 #define TEST_INIT() unsigned long ok = 0; unsigned long tests = 0;
 #define TEST(X) ++tests; if (!test_ ## X ()) ++ok; else { \
