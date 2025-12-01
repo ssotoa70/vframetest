@@ -938,10 +938,12 @@ static int count_test_files(const char *path, size_t *total_bytes)
 		    strstr(entry->d_name, ".tst") != NULL) {
 			count++;
 			if (total_bytes) {
-				snprintf(filepath, sizeof(filepath), "%s/%s",
-					 path, entry->d_name);
-				if (stat(filepath, &st) == 0) {
-					*total_bytes += st.st_size;
+				int ret = snprintf(filepath, sizeof(filepath), "%s/%s",
+						   path, entry->d_name);
+				if (ret > 0 && ret < (int)sizeof(filepath)) {
+					if (stat(filepath, &st) == 0) {
+						*total_bytes += st.st_size;
+					}
 				}
 			}
 		}
@@ -968,10 +970,12 @@ static int cleanup_test_files(const char *path)
 		/* Only remove frame*.tst files */
 		if (strncmp(entry->d_name, "frame", 5) == 0 &&
 		    strstr(entry->d_name, ".tst") != NULL) {
-			snprintf(filepath, sizeof(filepath), "%s/%s", path,
-				 entry->d_name);
-			if (unlink(filepath) == 0) {
-				count++;
+			int ret = snprintf(filepath, sizeof(filepath), "%s/%s", path,
+					   entry->d_name);
+			if (ret > 0 && ret < (int)sizeof(filepath)) {
+				if (unlink(filepath) == 0) {
+					count++;
+				}
 			}
 		}
 	}
