@@ -50,6 +50,15 @@ typedef enum tui_access_order_t {
 	TUI_ACCESS_ORDER_COUNT
 } tui_access_order_t;
 
+/* Profile category for filtering */
+typedef enum tui_profile_category_t {
+	TUI_CATEGORY_ALL = 0,
+	TUI_CATEGORY_STANDARD,  /* SD, HD, FULLHD, 2K, 4K, 8K */
+	TUI_CATEGORY_DPX,       /* DPX profiles */
+	TUI_CATEGORY_EXR,       /* EXR profiles */
+	TUI_CATEGORY_COUNT
+} tui_profile_category_t;
+
 /* Profile type for configuration */
 typedef enum tui_profile_t {
 	TUI_PROFILE_SD = 0,
@@ -92,6 +101,7 @@ typedef enum tui_config_field_t {
 typedef struct tui_test_config_t {
 	char path[512];
 	tui_test_type_t test_type;
+	tui_profile_category_t profile_category; /* Filter for profile selection */
 	tui_profile_t profile;
 	size_t custom_width;
 	size_t custom_height;

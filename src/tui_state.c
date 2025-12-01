@@ -17,6 +17,8 @@
 #include "tty.h"
 
 /* String constants for display */
+static const char *category_names[] = { "All", "Standard", "DPX", "EXR" };
+
 static const char *profile_names[] = { "SD", "HD", "FULLHD", "2K",
 				       "4K", "8K", "DPX-2K", "DPX-FULLHD",
 				       "DPX-4K", "DPX-8K", "EXR-FULLHD-half",
@@ -47,6 +49,13 @@ const char *tui_access_order_name(tui_access_order_t order)
 {
 	if (order < TUI_ACCESS_ORDER_COUNT)
 		return access_order_names[order];
+	return "Unknown";
+}
+
+const char *tui_category_name(tui_profile_category_t category)
+{
+	if (category < TUI_CATEGORY_COUNT)
+		return category_names[category];
 	return "Unknown";
 }
 
@@ -101,6 +110,7 @@ void tui_config_init(tui_test_config_t *config)
 	memset(config, 0, sizeof(*config));
 	strncpy(config->path, "/tmp/vframetest", sizeof(config->path) - 1);
 	config->test_type = TUI_TEST_WRITE;
+	config->profile_category = TUI_CATEGORY_ALL; /* Show all profiles by default */
 	config->profile = TUI_PROFILE_FULLHD;
 	config->custom_width = 1920;
 	config->custom_height = 1080;

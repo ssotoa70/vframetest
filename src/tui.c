@@ -130,9 +130,11 @@ void tui_metrics_init(tui_metrics_t *metrics, const char *profile_name,
 	metrics->test_type = test_type;
 	metrics->fs_type = fs_type;
 	metrics->latency_min_ns = UINT64_MAX;
+	metrics->frame_time_min_ns = UINT64_MAX;
 	metrics->sparkline_idx = 0;
 	metrics->percentile_idx = 0;
 	metrics->percentile_count = 0;
+	metrics->success_rate_percent = 0.0;
 }
 
 void tui_metrics_update(tui_metrics_t *metrics, uint64_t frame_time_ns,
@@ -157,7 +159,13 @@ void tui_metrics_update(tui_metrics_t *metrics, uint64_t frame_time_ns,
 		metrics->frames_buffered_io++;
 	}
 
-	/* Update min/max latency */
+	/* Update min/max/avg frame time */
+	if (frame_time_ns > 0 && frame_time_ns < metrics->frame_time_min_ns)
+		metrics->frame_time_min_ns = frame_time_ns;
+	if (frame_time_ns > metrics->frame_time_max_ns)
+		metrics->frame_time_max_ns = frame_time_ns;
+
+	/* Update latency min/max */
 	if (frame_time_ns > 0 && frame_time_ns < metrics->latency_min_ns)
 		metrics->latency_min_ns = frame_time_ns;
 	if (frame_time_ns > metrics->latency_max_ns)
@@ -175,6 +183,13 @@ void tui_metrics_update(tui_metrics_t *metrics, uint64_t frame_time_ns,
 		metrics->percentile_idx = (metrics->percentile_idx + 1) %
 					  TUI_PERCENTILE_BUFFER_SIZE;
 		metrics->percentile_count++;
+	}
+
+	/* Update success rate percentage */
+	if (metrics->frames_completed > 0) {
+		metrics->success_rate_percent =
+			(double)metrics->frames_succeeded * 100.0 /
+			metrics->frames_completed;
 	}
 }
 
@@ -305,12 +320,19 @@ void tui_render(tui_metrics_t *metrics)
 	double elapsed_sec = (double)metrics->elapsed_ns / 1000000000.0;
 	double throughput_mibs = 0.0;
 	double iops = 0.0;
+	uint64_t avg_frame_time_ns = 0;
 
 	if (elapsed_sec > 0.001) {
 		throughput_mibs =
 			((double)metrics->bytes_written / (1024.0 * 1024.0)) /
 			elapsed_sec;
 		iops = (double)metrics->frames_completed / elapsed_sec;
+	}
+
+	/* Calculate average frame time */
+	if (metrics->frames_completed > 0 && metrics->elapsed_ns > 0) {
+		avg_frame_time_ns = metrics->elapsed_ns / metrics->frames_completed;
+		metrics->frame_time_avg_ns = avg_frame_time_ns;
 	}
 
 	/* Calculate progress */

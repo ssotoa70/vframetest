@@ -87,12 +87,20 @@ typedef struct tui_metrics_t {
 	double throughput_mibs;
 	double iops;
 
+	/* Frame time statistics (nanoseconds) */
+	uint64_t frame_time_min_ns;
+	uint64_t frame_time_max_ns;
+	uint64_t frame_time_avg_ns;
+
 	/* Latency percentiles (nanoseconds) */
 	uint64_t latency_min_ns;
 	uint64_t latency_max_ns;
 	uint64_t latency_p50_ns;
 	uint64_t latency_p95_ns;
 	uint64_t latency_p99_ns;
+
+	/* Success metrics */
+	double success_rate_percent;
 
 	/* Sparkline history for latency visualization */
 	uint64_t sparkline_history[TUI_SPARKLINE_SIZE];

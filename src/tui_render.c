@@ -243,8 +243,9 @@ static void render_config(tui_app_state_t *state, int width, int start_row)
 	RESET_COLOR();
 	row++;
 
-	/* Profile */
+	/* Profile Category Filter */
 	is_selected = (state->selected_field == TUI_CONFIG_PROFILE);
+	const char *categories[] = { "All", "Standard", "DPX", "EXR" };
 	const char *profiles[] = { "SD", "HD", "FULLHD", "2K", "4K", "8K",
 				   "DPX-2K", "DPX-FHD", "DPX-4K", "DPX-8K",
 				   "EXR-FHD-h", "EXR-4K-h", "EXR-8K-h",
@@ -258,9 +259,44 @@ static void render_config(tui_app_state_t *state, int width, int start_row)
 	}
 	screen_print(&scr, is_selected ? ">" : " ");
 	SET_TEXT();
-	screen_print(&scr, " Profile:      ");
+	screen_print(&scr, " Categories:   ");
+
+	for (int i = 0; i < 4; i++) {
+		if (i == (int)state->config.profile_category) {
+			SET_SUCCESS();
+			screen_print(&scr, "(*)");
+		} else {
+			SET_TEXT();
+			screen_print(&scr, "(o)");
+		}
+		screen_printf(&scr, " %s ", categories[i]);
+	}
+	RESET_COLOR();
+	row++;
+
+	/* Profile Selection */
+	screen_move(&scr, row, 2);
+	if (is_selected) {
+		SET_HIGHLIGHT();
+	} else {
+		SET_TEXT();
+	}
+	screen_print(&scr, " ");
+	SET_TEXT();
+	screen_print(&scr, "Profiles:     ");
 
 	for (int i = 0; i < 16; i++) {
+		/* Check if profile belongs to selected category */
+		int show_profile =
+			(state->config.profile_category == 0 || /* All */
+			 (state->config.profile_category == 1 && i < 6) ||  /* Standard */
+			 (state->config.profile_category == 2 && i >= 6 && i < 10) || /* DPX */
+			 (state->config.profile_category == 3 && i >= 10 && i < 16)); /* EXR */
+
+		if (!show_profile) {
+			continue;
+		}
+
 		if (i == (int)state->config.profile) {
 			SET_SUCCESS();
 			screen_print(&scr, "(*)");
@@ -269,7 +305,7 @@ static void render_config(tui_app_state_t *state, int width, int start_row)
 			screen_print(&scr, "(o)");
 		}
 		screen_printf(&scr, " %s ", profiles[i]);
-		if ((i + 1) % 4 == 0 && i < 15) {
+		if ((i + 1) % 3 == 0) {
 			/* Wrap to next line for readability */
 			row++;
 			screen_move(&scr, row, 18);
@@ -568,9 +604,26 @@ static void render_dashboard(tui_app_state_t *state, tui_metrics_t *metrics,
 	RESET_COLOR();
 	row++;
 
+	/* Frame Time Stats */
+	SET_TEXT();
+	screen_move(&scr, row, 2);
+	screen_print(&scr, "Frame Time: Min: ");
+	SET_VALUE();
+	screen_printf(&scr, "%.2fms", (double)metrics->frame_time_min_ns / 1e6);
+	SET_TEXT();
+	screen_print(&scr, "  Avg: ");
+	SET_VALUE();
+	screen_printf(&scr, "%.2fms", (double)metrics->frame_time_avg_ns / 1e6);
+	SET_TEXT();
+	screen_print(&scr, "  Max: ");
+	SET_VALUE();
+	screen_printf(&scr, "%.2fms", (double)metrics->frame_time_max_ns / 1e6);
+	RESET_COLOR();
+	row++;
+
 	draw_hline(row++, 1, width - 2);
 
-	/* Status */
+	/* Status and Success Rate */
 	screen_move(&scr, row, 2);
 	SET_SUCCESS();
 	screen_print(&scr, "OK: ");
@@ -581,7 +634,24 @@ static void render_dashboard(tui_app_state_t *state, tui_metrics_t *metrics,
 	screen_print(&scr, "Failed: ");
 	screen_printf(&scr, "%zu", metrics->frames_failed);
 	SET_TEXT();
-	screen_print(&scr, "   I/O: ");
+	screen_print(&scr, "   Success Rate: ");
+	SET_VALUE();
+	screen_printf(&scr, "%.1f%%", metrics->success_rate_percent);
+	RESET_COLOR();
+	row++;
+
+	/* I/O Statistics */
+	SET_TEXT();
+	screen_move(&scr, row, 2);
+	screen_print(&scr, "I/O Modes: ");
+	SET_VALUE();
+	screen_printf(&scr, "Direct: %d", metrics->frames_direct_io);
+	SET_TEXT();
+	screen_print(&scr, "   ");
+	SET_VALUE();
+	screen_printf(&scr, "Buffered: %d", metrics->frames_buffered_io);
+	SET_TEXT();
+	screen_print(&scr, "   Current: ");
 	SET_VALUE();
 	screen_print(&scr, metrics->current_io_mode == IO_MODE_DIRECT ?
 				   "Direct" :
