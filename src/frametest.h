@@ -21,11 +21,22 @@
 #ifndef FRAMETEST_FRAMETEST_H
 #define FRAMETEST_FRAMETEST_H
 
+/* Version fallbacks for IDE/clangd (actual values set via -D flags) */
+#ifndef MAJOR
+#define MAJOR 0
+#endif
+#ifndef MINOR
+#define MINOR 0
+#endif
+#ifndef PATCH
+#define PATCH 0
+#endif
+
 #include "profile.h"
 #include "frame.h"
 
 #define SEC_IN_NS 1000000000UL
-#define SEC_IN_MS (SEC_IN_NS / 1000UL)
+#define SEC_IN_MS (SEC_IN_NS / 1000.0)
 
 enum TestMode {
 	TEST_WRITE = 1 << 0,
@@ -50,8 +61,6 @@ typedef struct opts_t {
 	size_t fps;
 	size_t header_size;
 
-	const char *list_profiles_filter;  /* Filter for --list-profiles */
-
 	unsigned int reverse : 1;
 	unsigned int random : 1;
 	unsigned int csv : 1;
@@ -61,7 +70,9 @@ typedef struct opts_t {
 	unsigned int frametimes : 1;
 	unsigned int histogram : 1;
 	unsigned int single_file : 1;
-	unsigned int tui : 1;  /* Enable Terminal User Interface (Phase 4A) */
+	unsigned int tui : 1;
+	unsigned int interactive : 1;
+	size_t history_size;
 } opts_t;
 
 /* I/O mode enumeration */
@@ -77,7 +88,7 @@ typedef struct test_completion_t {
 	uint64_t io;
 	uint64_t close;
 	uint64_t frame;
-	io_mode_t io_mode;              /* Which I/O mode was used for this frame */
+	io_mode_t io_mode; /* Which I/O mode was used for this frame */
 } test_completion_t;
 
 /* Filesystem type enumeration */
@@ -90,12 +101,13 @@ typedef enum filesystem_type_t {
 
 /* Error tracking structure */
 typedef struct error_info_t {
-	int errno_value;                /* System errno when error occurred */
-	char error_message[256];        /* Human-readable error message */
-	const char *operation;          /* Which operation failed (open/read/write/close) */
-	int frame_number;               /* Which frame failed */
-	int thread_id;                  /* Which thread encountered error */
-	uint64_t timestamp;             /* When error occurred (nanoseconds) */
+	int errno_value; /* System errno when error occurred */
+	char error_message[256]; /* Human-readable error message */
+	const char
+		*operation; /* Which operation failed (open/read/write/close) */
+	int frame_number; /* Which frame failed */
+	int thread_id; /* Which thread encountered error */
+	uint64_t timestamp; /* When error occurred (nanoseconds) */
 } error_info_t;
 
 typedef struct test_result_t {
@@ -105,31 +117,31 @@ typedef struct test_result_t {
 	test_completion_t *completion;
 
 	/* Error tracking (Phase 1) */
-	int frames_failed;              /* Count of failed frames */
-	int frames_succeeded;           /* Count of successful frames */
-	float success_rate_percent;     /* (succeeded/total)*100 */
-	error_info_t *errors;           /* Array of errors */
-	int error_count;                /* Number of errors recorded */
-	int max_errors;                 /* Allocated error array size */
+	int frames_failed; /* Count of failed frames */
+	int frames_succeeded; /* Count of successful frames */
+	float success_rate_percent; /* (succeeded/total)*100 */
+	error_info_t *errors; /* Array of errors */
+	int error_count; /* Number of errors recorded */
+	int max_errors; /* Allocated error array size */
 
 	/* Filesystem info (Phase 1) */
-	int direct_io_available;        /* Was direct I/O actually used? (1=yes, 0=no) */
+	int direct_io_available; /* Was direct I/O actually used? (1=yes, 0=no) */
 	filesystem_type_t filesystem_type; /* Type of filesystem being tested */
 
 	/* I/O fallback tracking (Phase 2) */
-	int frames_direct_io;           /* Frames completed with Direct I/O */
-	int frames_buffered_io;         /* Frames completed with Buffered I/O (fallback) */
-	int fallback_count;             /* Number of times fallback was triggered */
-	float direct_io_success_rate;   /* Percentage of frames that used Direct I/O */
+	int frames_direct_io; /* Frames completed with Direct I/O */
+	int frames_buffered_io; /* Frames completed with Buffered I/O (fallback) */
+	int fallback_count; /* Number of times fallback was triggered */
+	float direct_io_success_rate; /* Percentage of frames that used Direct I/O */
 
 	/* NFS/SMB optimization (Phase 3) */
-	int is_remote_filesystem;       /* 1 if NFS/SMB, 0 if local */
-	int skipped_direct_io_attempt;  /* Skip Direct I/O on remote filesystems */
-	uint64_t min_frame_time_ns;     /* Minimum frame completion time */
-	uint64_t max_frame_time_ns;     /* Maximum frame completion time */
-	uint64_t avg_frame_time_ns;     /* Average frame completion time */
-	float performance_trend;        /* Performance trend over frames (-1=degrading, 0=stable, 1=improving) */
-	uint64_t network_timeout_ns;    /* Timeout for network operations in nanoseconds */
+	int is_remote_filesystem; /* 1 if NFS/SMB, 0 if local */
+	int skipped_direct_io_attempt; /* Skip Direct I/O on remote filesystems */
+	uint64_t min_frame_time_ns; /* Minimum frame completion time */
+	uint64_t max_frame_time_ns; /* Maximum frame completion time */
+	uint64_t avg_frame_time_ns; /* Average frame completion time */
+	float performance_trend; /* Performance trend over frames (-1=degrading, 0=stable, 1=improving) */
+	uint64_t network_timeout_ns; /* Timeout for network operations in nanoseconds */
 } test_result_t;
 
 #endif
