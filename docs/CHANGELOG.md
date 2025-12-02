@@ -2,6 +2,32 @@
 
 All notable changes to vframetest are documented in this file.
 
+## [25.17.1] - 2025-12-02
+
+### TUI Enhancement: Double-Line Box Drawing Characters
+
+#### Fixed
+- **Implemented Double-Line Box Drawing Characters**
+  - Replaced simple ASCII borders with professional Unicode double-line boxes (╔═╗║╚╝╠╣)
+  - Section dividers now display as `╠═══════════════╣` instead of `+---+`
+  - Section headers now display as `║ SECTION NAME ║` with prominent styling
+  - Matches original mockup specification from Phase 4 planning documents
+
+#### Improved
+- **Enhanced Visual Hierarchy**
+  - Created `draw_double_hline()` function for double-line T-junction dividers
+  - Updated `draw_section_header()` to use double-line vertical bars (║)
+  - All 6 dashboard sections now use consistent double-line styling
+  - Professional appearance matching modern monitoring tools
+
+#### Technical
+- Added DBOX_* character definitions (DBOX_TL, DBOX_TR, DBOX_BL, DBOX_BR, DBOX_H, DBOX_V, DBOX_VR, DBOX_VL)
+- Updated all section dividers to use `draw_double_hline()`
+- Zero compiler warnings, zero build errors
+- UTF-8 box drawing characters fully supported
+
+---
+
 ## [25.17.0] - 2025-12-02
 
 ### TUI Enhancement: Structured Dashboard Layout

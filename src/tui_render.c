@@ -37,6 +37,16 @@ static screen_t scr;
 #define SET_STATUS() screen_set_fg(&scr, scr.theme->status_fg)
 #define RESET_COLOR() screen_reset_color(&scr)
 
+/* Double-line box drawing characters (UTF-8) */
+#define DBOX_TL "╔"  /* Top-left corner */
+#define DBOX_TR "╗"  /* Top-right corner */
+#define DBOX_BL "╚"  /* Bottom-left corner */
+#define DBOX_BR "╝"  /* Bottom-right corner */
+#define DBOX_H  "═"  /* Horizontal line */
+#define DBOX_V  "║"  /* Vertical line */
+#define DBOX_VR "╠"  /* Vertical-right (left side T-junction) */
+#define DBOX_VL "╣"  /* Vertical-left (right side T-junction) */
+
 /* ─────────────────────────────────────────────────────────────────────────────
  * Helper functions
  * ───────────────────────────────────────────────────────────────────────────── */
@@ -84,32 +94,52 @@ static void draw_textf(int row, int col, const char *fmt, ...)
 	draw_text(row, col, buf);
 }
 
-/* Draw a section header with double-line separators */
+/* Draw a horizontal divider line with double-line box characters */
+static void draw_double_hline(int row, int col, int len)
+{
+	SET_BORDER();
+	screen_move(&scr, row, col);
+
+	/* Left T-junction */
+	screen_print(&scr, DBOX_VR);
+
+	/* Horizontal line */
+	for (int i = 1; i < len - 1; i++) {
+		screen_print(&scr, DBOX_H);
+	}
+
+	/* Right T-junction */
+	screen_print(&scr, DBOX_VL);
+
+	RESET_COLOR();
+}
+
+/* Draw a section header with prominent double-line styling */
 static void draw_section_header(int row, int col, int width, const char *title)
 {
 	SET_BORDER();
+	screen_move(&scr, row, col);
 
-	/* Draw left edge */
-	scr.cells[row][col] = '|';
-	scr.colors[row][col] = MAKE_COLOR(scr.theme->border_fg, COLOR_DEFAULT);
+	/* Draw left edge with vertical line */
+	screen_print(&scr, DBOX_V);
+	screen_putc(&scr, ' ');
 
-	/* Draw the section header line with title */
-	screen_move(&scr, row, col + 2);
+	/* Draw section title in highlighted color */
 	SET_HIGHLIGHT();
 	screen_print(&scr, title);
 
 	/* Fill rest of line with spaces to width */
 	int title_len = strlen(title);
-	int remaining = width - 4 - title_len;
+	int remaining = width - title_len - 4; /* Account for edges and spacing */
 	SET_TEXT();
 	for (int i = 0; i < remaining; i++) {
 		screen_putc(&scr, ' ');
 	}
 
-	/* Draw right edge */
+	/* Draw right edge with vertical line */
 	SET_BORDER();
-	scr.cells[row][width - 1] = '|';
-	scr.colors[row][width - 1] = MAKE_COLOR(scr.theme->border_fg, COLOR_DEFAULT);
+	screen_putc(&scr, ' ');
+	screen_print(&scr, DBOX_V);
 
 	RESET_COLOR();
 }
@@ -649,7 +679,7 @@ static void render_dashboard(tui_app_state_t *state, tui_metrics_t *metrics,
 	RESET_COLOR();
 	row++;
 
-	draw_hline(row++, 1, width - 2);
+	draw_double_hline(row++, 1, width - 2);
 
 	/* PERFORMANCE METRICS Section */
 	draw_section_header(row++, 1, width - 2, "PERFORMANCE METRICS");
@@ -694,7 +724,7 @@ static void render_dashboard(tui_app_state_t *state, tui_metrics_t *metrics,
 	row++;
 	row++; /* Empty line for spacing */
 
-	draw_hline(row++, 1, width - 2);
+	draw_double_hline(row++, 1, width - 2);
 
 	/* LATENCY ANALYSIS Section */
 	draw_section_header(row++, 1, width - 2, "LATENCY ANALYSIS");
@@ -756,7 +786,7 @@ static void render_dashboard(tui_app_state_t *state, tui_metrics_t *metrics,
 	RESET_COLOR();
 	row++;
 
-	draw_hline(row++, 1, width - 2);
+	draw_double_hline(row++, 1, width - 2);
 
 	/* TEST RESULTS Section */
 	draw_section_header(row++, 1, width - 2, "TEST RESULTS");
@@ -809,7 +839,7 @@ static void render_dashboard(tui_app_state_t *state, tui_metrics_t *metrics,
 	row++;
 	row++; /* Empty line for spacing */
 
-	draw_hline(row++, 1, width - 2);
+	draw_double_hline(row++, 1, width - 2);
 
 	/* I/O MODE DISTRIBUTION Section */
 	draw_section_header(row++, 1, width - 2, "I/O MODE DISTRIBUTION");
@@ -871,7 +901,7 @@ static void render_dashboard(tui_app_state_t *state, tui_metrics_t *metrics,
 	row++;
 	row++; /* Empty line for spacing */
 
-	draw_hline(row++, 1, width - 2);
+	draw_double_hline(row++, 1, width - 2);
 
 	/* FILESYSTEM & OPTIMIZATION Section */
 	draw_section_header(row++, 1, width - 2, "FILESYSTEM & OPTIMIZATION");
@@ -915,7 +945,7 @@ static void render_dashboard(tui_app_state_t *state, tui_metrics_t *metrics,
 	row++;
 	row++; /* Empty line for spacing */
 
-	draw_hline(row++, 1, width - 2);
+	draw_double_hline(row++, 1, width - 2);
 
 	/* SYSTEM STATUS Section */
 	draw_section_header(row++, 1, width - 2, "SYSTEM STATUS");
