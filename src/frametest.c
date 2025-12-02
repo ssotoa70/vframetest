@@ -465,8 +465,8 @@ int run_test_threads_tui(const platform_t *platform, const char *tst,
 		metrics.elapsed_ns = elapsed;
 		metrics.current_io_mode = progress.last_io_mode;
 
-		/* Update sparkline with latest frame time */
-		if (progress.last_frame_time_ns > 0) {
+		/* Update sparkline with latest frame time (skip if --no-metrics) */
+		if (!opts->no_metrics && progress.last_frame_time_ns > 0) {
 			tui_metrics_update(&metrics,
 					   progress.last_frame_time_ns, 0,
 					   progress.last_io_mode, 1);
@@ -814,6 +814,7 @@ static struct option long_opts[] = {
 	{ "frametimes", no_argument, 0, 0 },
 	{ "histogram", no_argument, 0, 0 },
 	{ "tui", no_argument, 0, 0 },
+	{ "no-metrics", no_argument, 0, 0 },
 	{ "interactive", no_argument, 0, 'i' },
 	{ "history-size", required_argument, 0, 0 },
 	{ "version", no_argument, 0, 'V' },
@@ -843,6 +844,7 @@ static struct long_opt_desc long_opt_descs[] = {
 	{ "frametimes", "Show detailed timings of every frames in CSV format" },
 	{ "histogram", "Show histogram of completion times at the end" },
 	{ "tui", "Show real-time TUI dashboard during test" },
+	{ "no-metrics", "Disable real-time metrics collection for maximum performance" },
 	{ "interactive", "Launch interactive TTY mode with config menu" },
 	{ "history-size", "Frame history depth for interactive mode (default 10000)" },
 	{ "version", "Display version information" },
@@ -1605,6 +1607,8 @@ int main(int argc, char **argv)
 				opts.histogram = 1;
 			if (!strcmp(long_opts[opt_index].name, "tui"))
 				opts.tui = 1;
+			if (!strcmp(long_opts[opt_index].name, "no-metrics"))
+				opts.no_metrics = 1;
 			if (!strcmp(long_opts[opt_index].name, "times"))
 				opts.times = 1;
 			if (!strcmp(long_opts[opt_index].name, "frametimes"))

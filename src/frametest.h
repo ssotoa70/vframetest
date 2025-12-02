@@ -74,6 +74,7 @@ typedef struct opts_t {
 	unsigned int single_file : 1;
 	unsigned int tui : 1;  /* Enable Terminal User Interface (Phase 4A) */
 	unsigned int interactive : 1; /* Launch interactive config menu */
+	unsigned int no_metrics : 1; /* Disable metrics collection for peak performance */
 	size_t history_size; /* Frame history depth for interactive mode */
 } opts_t;
 

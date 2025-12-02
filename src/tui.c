@@ -160,33 +160,35 @@ void tui_metrics_update(tui_metrics_t *metrics, uint64_t frame_time_ns,
 		metrics->frames_buffered_io++;
 	}
 
-	/* Update min/max/avg frame time */
-	if (frame_time_ns > 0 && frame_time_ns < metrics->frame_time_min_ns)
-		metrics->frame_time_min_ns = frame_time_ns;
-	if (frame_time_ns > metrics->frame_time_max_ns)
-		metrics->frame_time_max_ns = frame_time_ns;
-
-	/* Update latency min/max */
-	if (frame_time_ns > 0 && frame_time_ns < metrics->latency_min_ns)
-		metrics->latency_min_ns = frame_time_ns;
-	if (frame_time_ns > metrics->latency_max_ns)
-		metrics->latency_max_ns = frame_time_ns;
-
-	/* Add to sparkline history (circular buffer) */
-	metrics->sparkline_history[metrics->sparkline_idx] = frame_time_ns;
-	metrics->sparkline_idx =
-		(metrics->sparkline_idx + 1) % TUI_SPARKLINE_SIZE;
-
-	/* Add to percentile buffer (circular buffer for running percentiles) */
+	/* Only update detailed metrics if frame_time is valid (optimization) */
 	if (frame_time_ns > 0) {
+		/* Update min/max frame time (single checks, faster) */
+		if (frame_time_ns < metrics->frame_time_min_ns)
+			metrics->frame_time_min_ns = frame_time_ns;
+		if (frame_time_ns > metrics->frame_time_max_ns)
+			metrics->frame_time_max_ns = frame_time_ns;
+
+		/* Update latency min/max (single checks, faster) */
+		if (frame_time_ns < metrics->latency_min_ns)
+			metrics->latency_min_ns = frame_time_ns;
+		if (frame_time_ns > metrics->latency_max_ns)
+			metrics->latency_max_ns = frame_time_ns;
+
+		/* Add to sparkline history (circular buffer) */
+		/* Use bitwise AND instead of modulo (much faster for power-of-2 sizes) */
+		metrics->sparkline_history[metrics->sparkline_idx] = frame_time_ns;
+		metrics->sparkline_idx =
+			(metrics->sparkline_idx + 1) & (TUI_SPARKLINE_SIZE - 1);
+
+		/* Add to percentile buffer (circular buffer for running percentiles) */
 		metrics->percentile_buffer[metrics->percentile_idx] =
 			frame_time_ns;
-		metrics->percentile_idx = (metrics->percentile_idx + 1) %
-					  TUI_PERCENTILE_BUFFER_SIZE;
+		metrics->percentile_idx = (metrics->percentile_idx + 1) &
+					  (TUI_PERCENTILE_BUFFER_SIZE - 1);
 		metrics->percentile_count++;
 	}
 
-	/* Update success rate percentage */
+	/* Update success rate percentage (only if we have frames) */
 	if (metrics->frames_completed > 0) {
 		metrics->success_rate_percent =
 			(double)metrics->frames_succeeded * 100.0 /
