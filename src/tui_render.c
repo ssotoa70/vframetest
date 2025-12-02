@@ -622,7 +622,10 @@ static void render_dashboard(tui_app_state_t *state, tui_metrics_t *metrics,
 
 	draw_hline(row++, 1, width - 2);
 
-	/* Progress */
+	/* PROGRESS Section */
+	draw_section_header(row++, 1, width - 2, "PROGRESS");
+
+	/* Progress bar */
 	int pct = metrics->frames_total > 0 ?
 			  (int)((metrics->frames_completed * 100) /
 				metrics->frames_total) :
@@ -632,7 +635,7 @@ static void render_dashboard(tui_app_state_t *state, tui_metrics_t *metrics,
 
 	SET_TEXT();
 	screen_move(&scr, row, 2);
-	screen_print(&scr, "Progress: [");
+	screen_print(&scr, " [");
 
 	SET_PROGRESS();
 	for (int i = 0; i < filled; i++) {
@@ -643,12 +646,9 @@ static void render_dashboard(tui_app_state_t *state, tui_metrics_t *metrics,
 		screen_putc(&scr, '.');
 	}
 	SET_TEXT();
-	screen_printf(&scr, "] %3d%%  ", pct);
-	SET_VALUE();
-	screen_printf(&scr, "%zu/%zu", metrics->frames_completed,
+	screen_printf(&scr, "] %d%% (%zu/%zu)", pct,
+		      metrics->frames_completed,
 		      metrics->frames_total);
-	SET_TEXT();
-	screen_print(&scr, " frames");
 	RESET_COLOR();
 	row++;
 
@@ -658,17 +658,17 @@ static void render_dashboard(tui_app_state_t *state, tui_metrics_t *metrics,
 
 	SET_TEXT();
 	screen_move(&scr, row, 2);
-	screen_print(&scr, "Elapsed: ");
+	screen_print(&scr, " Elapsed: ");
 	SET_VALUE();
 	screen_print(&scr, elapsed_str);
 	SET_TEXT();
-	screen_print(&scr, "   ETA: ");
+	screen_print(&scr, "  |  ETA: ");
 	SET_VALUE();
 	if (metrics->frames_completed >= 5) {
 		format_time_human(metrics->eta_ns, eta_str, sizeof(eta_str));
 		screen_print(&scr, eta_str);
 		SET_TEXT();
-		screen_print(&scr, "   Total: ~");
+		screen_print(&scr, "  |  Total: ~");
 		SET_VALUE();
 		format_time_human(metrics->total_estimated_ns, total_str,
 				  sizeof(total_str));
@@ -678,6 +678,7 @@ static void render_dashboard(tui_app_state_t *state, tui_metrics_t *metrics,
 	}
 	RESET_COLOR();
 	row++;
+	row++; /* Empty line for spacing */
 
 	draw_double_hline(row++, 1, width - 2);
 
