@@ -277,6 +277,30 @@ We welcome contributions! See [CONTRIBUTING.md](docs/CONTRIBUTING.md) for:
 
 ---
 
+### Phase 4A: Real-Time TUI Dashboard (v25.15.0-25.16.0)
+- ✅ **Real-Time Dashboard** - Live progress, metrics, and latency visualization
+- ✅ **Interactive Configuration Menu** - Keyboard-driven test setup with all 17 profiles
+- ✅ **Multi-Tab Interface** - Dashboard, History, Latency, Config views
+- ✅ **Smart Metrics** - Elapsed/ETA/Total time, throughput (dual MiB/s + MB/s), data rates
+- ✅ **Performance Trends** - Visual indicators (↗ Improving, → Stable, ↘ Degrading)
+- ✅ **I/O Visualization** - Bar charts showing Direct vs Buffered I/O breakdown
+- ✅ **Frame Profile Support** - All 17 profiles with category filtering (Standard/DPX/EXR)
+- ✅ **Help System** - Comprehensive keyboard shortcut reference overlay
+- ✅ **Cross-Platform** - Works on macOS, Linux, Windows; compatible with SSH
+
+### Phase 4B: REST API Foundation (v25.16.0)
+- ✅ **HTTP Server** - Socket-based implementation, zero external dependencies
+- ✅ **Data Access Layer** - Thread-safe metrics collection with circular buffers
+- ✅ **Data Export** - JSON and CSV formatters for structured output
+- ✅ **API Stubs** - 12 planned endpoint handlers ready for Phase 5 implementation
+- ✅ **Cross-Platform** - Windows, Linux, macOS compatible
+
+### Phase 4C: Testing & Integration (v25.16.0)
+- ✅ **Code Quality** - Cross-platform compatibility fixes and refinements
+- ✅ **Windows Build** - Fixed snprintf truncation warnings, all platforms green
+- ✅ **Testing Framework** - Integration tests with real filesystem I/O
+- ✅ **CI/CD Pipeline** - GitHub Actions validating all platforms
+
 ## 📈 Project Status
 
 | Phase | Status | Features |
@@ -286,11 +310,12 @@ We welcome contributions! See [CONTRIBUTING.md](docs/CONTRIBUTING.md) for:
 | **Phase 3** | ✅ Complete | NFS/SMB optimization detection, performance analysis |
 | **v25.13.1** | ✅ Complete | DPX/EXR profiles, profile filtering, byte size display |
 | **Phase 4A** | ✅ Complete | TUI real-time dashboard, interactive monitoring, SSH-compatible |
-| **Phase 4B/C** | 🚀 In Development | REST API, web interface, testing infrastructure |
-| **Future** | 🔮 Vision | Cloud integration, distributed testing, ML anomaly detection |
+| **Phase 4B** | ✅ Complete | REST API foundation, data layer, JSON/CSV export |
+| **Phase 4C** | ✅ Complete | Cross-platform testing, Windows fixes, integration tests |
+| **Future** | 🔮 Vision | Web dashboard, distributed testing, cloud integration |
 
-Current Version: **25.15.0** (Phase 4A: Terminal User Interface Complete)
-Latest Release: [v25.15.0](https://github.com/ssotoa70/vframetest/releases/tag/v25.15.0)
+Current Version: **25.16.0** (Phase 4: Complete - TUI, REST API, Integration)
+Latest Release: [v25.16.0](https://github.com/ssotoa70/vframetest/releases/tag/v25.16.0)
 
 ---
 

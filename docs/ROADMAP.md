@@ -88,21 +88,34 @@
 - ✅ Comprehensive unit tests
 - ✅ Cross-platform support (macOS, Linux, Windows)
 
-## In Development: Phase 4B & 4C 🚀
+## Completed: Phase 4B & 4C ✅ (v25.16.0)
 
-### Phase 4B: REST API & Data Export (Priority 2)
+### Phase 4B: REST API Foundation (Complete)
 **Programmatic Access to Test Results**
-- RESTful API for test result queries
-- Real-time metrics via WebSocket (optional)
-- CSV/JSON export from API
-- Query historical data
-- Integration with external tools
-- TUI consumes this API internally
+- ✅ Socket-based HTTP server (zero external dependencies)
+- ✅ Thread-safe data access layer with circular buffers
+- ✅ JSON export formatter with all metrics
+- ✅ CSV export formatter for data analysis
+- ✅ 12 planned endpoint stubs ready for Phase 5
+- ✅ Cross-platform implementation (Windows, Linux, macOS)
 
-### Phase 4C: Enhanced Output Formats (Priority 3)
-- Structured data export for analysis
-- Integration with monitoring systems
-- Alert triggers on performance degradation
+### Phase 4C: Testing & Integration (Complete)
+**Code Quality, Cross-Platform Support, and Integration Testing**
+- ✅ Windows build fixes (snprintf truncation warnings resolved)
+- ✅ Cross-platform compatibility verification
+- ✅ Integration test framework enhancements
+- ✅ CI/CD pipeline validation on all platforms
+- ✅ Comprehensive Phase 4A/4B feature integration
+
+### Phase 4: Priority 2-3 Enhancements (Completed)
+**High-Value TUI Dashboard Improvements**
+- ✅ Elapsed/ETA/Total Time Display - Smart time formatting and estimation
+- ✅ Data Rate Metrics - Dual display (MiB/s and MB/s)
+- ✅ Bytes Transferred - Human-readable format with GB display
+- ✅ Latency Trend Indicator - Visual arrows showing performance direction
+- ✅ Enhanced Help Overlay - Comprehensive keyboard shortcut reference
+- ✅ Latency Percentile Details - P50/P95/P99 with color-coded status (✓/⚠/✗)
+- ✅ I/O Statistics Panel - Visual bar charts with percentage breakdown
 
 ## Future Vision 🔮
 
@@ -151,6 +164,6 @@ See [GOVERNANCE.md](GOVERNANCE.md) for decision-making process.
 
 ---
 
-**Latest Status**: Phase 1 Complete ✅ | Phase 2 Complete ✅ | Phase 3 Complete ✅ | Phase 4A Complete ✅ | Phase 4B/C Planned
-**Version**: 25.15.0 (Phase 4A: TUI Complete)
-**For Details**: See [PROJECT_EVOLUTION.md](PROJECT_EVOLUTION.md) and [PHASE_3_COMPLETION_REPORT.md](PHASE_3_COMPLETION_REPORT.md)
+**Latest Status**: Phase 1 Complete ✅ | Phase 2 Complete ✅ | Phase 3 Complete ✅ | Phase 4A Complete ✅ | Phase 4B Complete ✅ | Phase 4C Complete ✅
+**Version**: 25.16.0 (Phase 4: TUI + REST API + Integration Complete)
+**For Details**: See [PROJECT_EVOLUTION.md](PROJECT_EVOLUTION.md), [PHASE_3_COMPLETION_REPORT.md](PHASE_3_COMPLETION_REPORT.md), and [PHASE_4_COMPLETION_REPORT.md](PHASE_4_COMPLETION_REPORT.md)
