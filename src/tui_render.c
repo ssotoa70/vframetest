@@ -523,11 +523,9 @@ static void render_dashboard(tui_app_state_t *state, tui_metrics_t *metrics,
 	SET_VALUE();
 	screen_printf(&scr, "%zu", metrics->thread_count);
 	SET_TEXT();
-	screen_print(&scr, "   FS: ");
+	screen_print(&scr, "   Test: ");
 	SET_VALUE();
-	screen_print(&scr, metrics->fs_type == FILESYSTEM_SMB ? "SMB" :
-			   metrics->fs_type == FILESYSTEM_NFS ? "NFS" :
-								"LOCAL");
+	screen_print(&scr, metrics->test_type ? metrics->test_type : "?");
 	RESET_COLOR();
 	row++;
 
@@ -537,6 +535,28 @@ static void render_dashboard(tui_app_state_t *state, tui_metrics_t *metrics,
 	SET_VALUE();
 	screen_print(&scr,
 		     metrics->target_path ? metrics->target_path : "(none)");
+	SET_TEXT();
+	screen_print(&scr, "   FS: ");
+	SET_VALUE();
+	const char *fs_name = metrics->fs_type == FILESYSTEM_SMB ? "SMB" :
+			      metrics->fs_type == FILESYSTEM_NFS ? "NFS" :
+			      "LOCAL";
+	screen_print(&scr, fs_name);
+	RESET_COLOR();
+	row++;
+
+	/* Filesystem optimization status */
+	SET_TEXT();
+	screen_move(&scr, row, 2);
+	screen_print(&scr, "Filesystem Status: ");
+	SET_VALUE();
+	if (metrics->fs_type == FILESYSTEM_NFS) {
+		screen_print(&scr, "✓ Direct I/O optimized for NFS");
+	} else if (metrics->fs_type == FILESYSTEM_SMB) {
+		screen_print(&scr, "⚠ Network filesystem (buffered I/O)");
+	} else {
+		screen_print(&scr, "✓ Local filesystem - optimal");
+	}
 	RESET_COLOR();
 	row++;
 
@@ -621,6 +641,10 @@ static void render_dashboard(tui_app_state_t *state, tui_metrics_t *metrics,
 	screen_print(&scr, "   FPS: ");
 	SET_VALUE();
 	screen_printf(&scr, "%.1f", fps);
+	SET_TEXT();
+	screen_print(&scr, "   IOPS: ");
+	SET_VALUE();
+	screen_printf(&scr, "%.0f", metrics->iops);
 	RESET_COLOR();
 	row++;
 
@@ -641,19 +665,42 @@ static void render_dashboard(tui_app_state_t *state, tui_metrics_t *metrics,
 	const char *trend_text = metrics->latency_trend > 0 ? "Improving" :
 				 metrics->latency_trend < 0 ? "Degrading" : "Stable";
 
+	SET_HIGHLIGHT();
+	screen_move(&scr, row, 2);
+	screen_print(&scr, "Latency Statistics:");
+	RESET_COLOR();
+	row++;
+
 	SET_TEXT();
 	screen_move(&scr, row, 2);
-	screen_print(&scr, "Latency: Min: ");
+	screen_print(&scr, "  Min: ");
 	SET_VALUE();
 	screen_printf(&scr, "%.2fms", (double)metrics->latency_min_ns / 1e6);
 	SET_TEXT();
-	screen_print(&scr, "  Max: ");
+	screen_print(&scr, "   Max: ");
 	SET_VALUE();
 	screen_printf(&scr, "%.2fms", (double)metrics->latency_max_ns / 1e6);
 	SET_TEXT();
-	screen_print(&scr, "  Trend: ");
+	screen_print(&scr, "   Trend: ");
 	SET_VALUE();
 	screen_printf(&scr, "%s %s", trend_arrow, trend_text);
+	RESET_COLOR();
+	row++;
+
+	/* Latency Percentiles */
+	SET_TEXT();
+	screen_move(&scr, row, 2);
+	screen_print(&scr, "  P50: ");
+	SET_VALUE();
+	screen_printf(&scr, "%.2fms", (double)metrics->latency_p50_ns / 1e6);
+	SET_TEXT();
+	screen_print(&scr, "   P95: ");
+	SET_VALUE();
+	screen_printf(&scr, "%.2fms", (double)metrics->latency_p95_ns / 1e6);
+	SET_TEXT();
+	screen_print(&scr, "   P99: ");
+	SET_VALUE();
+	screen_printf(&scr, "%.2fms", (double)metrics->latency_p99_ns / 1e6);
 	RESET_COLOR();
 	row++;
 
@@ -750,6 +797,77 @@ static void render_dashboard(tui_app_state_t *state, tui_metrics_t *metrics,
 	screen_print(&scr, metrics->current_io_mode == IO_MODE_DIRECT ?
 				   "Direct I/O" :
 				   "Buffered I/O");
+	RESET_COLOR();
+	row++;
+
+	draw_hline(row++, 1, width - 2);
+
+	/* System Status Summary */
+	SET_HIGHLIGHT();
+	screen_move(&scr, row, 2);
+	screen_print(&scr, "Test Status: ");
+	SET_TEXT();
+	int total_frames = metrics->frames_succeeded + metrics->frames_failed;
+	if (total_frames > 0) {
+		if (metrics->success_rate_percent >= 99.5) {
+			SET_SUCCESS();
+			screen_print(&scr, "EXCELLENT");
+		} else if (metrics->success_rate_percent >= 95.0) {
+			SET_INFO();
+			screen_print(&scr, "GOOD");
+		} else if (metrics->success_rate_percent >= 90.0) {
+			SET_WARNING();
+			screen_print(&scr, "FAIR");
+		} else {
+			SET_ERROR();
+			screen_print(&scr, "POOR");
+		}
+	} else {
+		SET_INFO();
+		screen_print(&scr, "RUNNING");
+	}
+	RESET_COLOR();
+	row++;
+
+	/* Performance Assessment */
+	SET_TEXT();
+	screen_move(&scr, row, 2);
+	screen_print(&scr, "Performance: ");
+	SET_VALUE();
+	if (mibs > 500.0) {
+		SET_SUCCESS();
+		screen_print(&scr, "EXCELLENT (>500 MiB/s)");
+	} else if (mibs > 250.0) {
+		SET_INFO();
+		screen_print(&scr, "GOOD (250-500 MiB/s)");
+	} else if (mibs > 100.0) {
+		SET_WARNING();
+		screen_print(&scr, "FAIR (100-250 MiB/s)");
+	} else {
+		SET_WARNING();
+		screen_print(&scr, "SLOW (<100 MiB/s)");
+	}
+	RESET_COLOR();
+	row++;
+
+	/* Stability Assessment */
+	SET_TEXT();
+	screen_move(&scr, row, 2);
+	screen_print(&scr, "Stability: ");
+	SET_VALUE();
+	double avg_latency = (double)metrics->latency_min_ns / 1e6;
+	double max_latency = (double)metrics->latency_max_ns / 1e6;
+	double variation = max_latency > 0 ? ((max_latency - avg_latency) / max_latency) * 100.0 : 0;
+	if (variation < 10.0) {
+		SET_SUCCESS();
+		screen_print(&scr, "STABLE");
+	} else if (variation < 25.0) {
+		SET_INFO();
+		screen_print(&scr, "MODERATE");
+	} else {
+		SET_WARNING();
+		screen_print(&scr, "VARIABLE");
+	}
 	RESET_COLOR();
 	row++;
 }
