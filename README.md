@@ -1,7 +1,7 @@
 # vframetest - Professional Frame-Based Storage I/O Benchmark
 
-[![CI/CD](https://github.com/AnxietyLab/vframetest/actions/workflows/ci.yml/badge.svg)](https://github.com/AnxietyLab/vframetest/actions/workflows/ci.yml)
-[![GitHub Release](https://img.shields.io/github/v/release/AnxietyLab/vframetest)](https://github.com/AnxietyLab/vframetest/releases)
+[![CI/CD](https://github.com/ssotoa70/vframetest/actions/workflows/ci.yml/badge.svg)](https://github.com/ssotoa70/vframetest/actions/workflows/ci.yml)
+[![GitHub Release](https://img.shields.io/github/v/release/ssotoa70/vframetest)](https://github.com/ssotoa70/vframetest/releases)
 [![License](https://img.shields.io/badge/license-GPL%202.0-blue)](COPYING)
 
 **Enterprise-grade storage performance validation tool** designed to accurately measure I/O performance for video workloads, media production, and data center infrastructure.
@@ -28,12 +28,12 @@ Evolved from the original Tuxera/SGI implementation into a modern, multi-platfor
 **macOS (Homebrew)**
 
 ```bash
-brew tap AnxietyLab/vframetest https://github.com/AnxietyLab/vframetest
+brew tap ssotoa70/vframetest https://github.com/ssotoa70/vframetest
 brew install vframetest
 vframetest --version
 ```
 
-**Linux & Windows** - [Download pre-built binaries](https://github.com/AnxietyLab/vframetest/releases)
+**Linux & Windows** - [Download pre-built binaries](https://github.com/ssotoa70/vframetest/releases)
 
 ### Basic Test
 
@@ -203,7 +203,7 @@ vframetest -j -w FULLHD-24bit -t 4 -n 100 /mnt/storage > results.json
 ### Quick Build
 
 ```bash
-git clone https://github.com/AnxietyLab/vframetest.git
+git clone https://github.com/ssotoa70/vframetest.git
 cd vframetest
 make clean && make -j4
 ./build/vframetest --version
@@ -296,8 +296,8 @@ Latest Release: [v25.15.0](https://github.com/ssotoa70/vframetest/releases/tag/v
 
 ## 📞 Support & Community
 
-- **Issues & Bugs**: [GitHub Issues](https://github.com/AnxietyLab/vframetest/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/AnxietyLab/vframetest/discussions)
+- **Issues & Bugs**: [GitHub Issues](https://github.com/ssotoa70/vframetest/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/ssotoa70/vframetest/discussions)
 - **Documentation**: [Complete Guides](docs/)
 - **Wiki**: [Community Wiki](/wiki)
 
