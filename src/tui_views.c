@@ -919,8 +919,8 @@ void tui_view_latency(tui_app_state_t *state, tui_metrics_t *metrics)
 
 void tui_view_help_overlay(tui_app_state_t *state)
 {
-	int width = 50;
-	int height = 18;
+	int width = 60;
+	int height = 24;
 	int start_col = (state->term_width - width) / 2;
 	int start_row = (state->term_height - height) / 2;
 
@@ -942,21 +942,30 @@ void tui_view_help_overlay(tui_app_state_t *state)
 	print_hline(width, DBOX_V " ", BOX_H, " " DBOX_V);
 
 	const char *help_lines[] = {
-		"  q         Quit",
-		"  p         Pause/Resume test",
-		"  1-4       Switch views",
+		"Global Keys:",
+		"  q/Q       Quit (Ctrl+C, Ctrl+D)",
+		"  p/P       Pause/Resume test",
+		"  e         Export JSON results",
+		"  E         Export CSV results",
+		"  1-4       Switch views (Dashboard/History/Latency/Config)",
 		"  ?/h       Toggle this help",
+		"  ESC       Close help / Cancel",
 		"",
-		"  Config View:",
-		"  ↑↓        Navigate fields",
-		"  ←→        Change option",
+		"Dashboard View: (Monitoring - no special keys)",
+		"",
+		"History View:",
+		"  ↑/k       Scroll up",
+		"  ↓/j       Scroll down",
+		"  PgUp/PgDn Page up/down",
+		"",
+		"Latency View: (Histogram - no special keys)",
+		"",
+		"Config View:",
+		"  ↑/↓       Navigate fields",
+		"  ←/→       Change option",
 		"  +/-       Adjust numeric value",
-		"  Enter     Edit field / Start",
-		"  s         Start test",
-		"",
-		"  History View:",
-		"  ↑↓        Scroll",
-		"  f         Filter failures",
+		"  Enter     Edit field / Start test",
+		"  ESC       Cancel / Close",
 	};
 
 	int num_lines = sizeof(help_lines) / sizeof(help_lines[0]);

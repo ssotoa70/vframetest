@@ -693,23 +693,65 @@ static void render_dashboard(tui_app_state_t *state, tui_metrics_t *metrics,
 	RESET_COLOR();
 	row++;
 
-	/* I/O Statistics */
+	/* I/O Statistics with visual breakdown */
+	size_t total_io_frames = metrics->frames_direct_io + metrics->frames_buffered_io;
+	double direct_percent = total_io_frames > 0 ?
+		(double)metrics->frames_direct_io * 100.0 / total_io_frames : 0;
+	double buffered_percent = total_io_frames > 0 ?
+		(double)metrics->frames_buffered_io * 100.0 / total_io_frames : 0;
+
+	SET_HIGHLIGHT();
+	screen_move(&scr, row, 2);
+	screen_print(&scr, "I/O Mode Distribution:");
+	RESET_COLOR();
+	row++;
+
+	/* Direct I/O bar */
 	SET_TEXT();
 	screen_move(&scr, row, 2);
-	screen_print(&scr, "I/O Modes: ");
+	screen_print(&scr, "  Direct I/O:   ");
 	SET_VALUE();
-	screen_printf(&scr, "Direct: %d", metrics->frames_direct_io);
+	int direct_bar_width = (int)(direct_percent / 3.0); /* 100% = ~33 chars */
+	if (direct_bar_width > 30) direct_bar_width = 30;
+	for (int i = 0; i < direct_bar_width; i++) screen_print(&scr, "█");
+	for (int i = direct_bar_width; i < 30; i++) screen_print(&scr, "░");
 	SET_TEXT();
-	screen_print(&scr, "   ");
+	screen_printf(&scr, "  %5.1f%% (%zu frames)", direct_percent, metrics->frames_direct_io);
+	if (direct_percent > 80) {
+		SET_SUCCESS();
+		screen_print(&scr, " ✓");
+	}
+	RESET_COLOR();
+	row++;
+
+	/* Buffered I/O bar */
+	SET_TEXT();
+	screen_move(&scr, row, 2);
+	screen_print(&scr, "  Buffered I/O: ");
 	SET_VALUE();
-	screen_printf(&scr, "Buffered: %d", metrics->frames_buffered_io);
+	int buffered_bar_width = (int)(buffered_percent / 3.0);
+	if (buffered_bar_width > 30) buffered_bar_width = 30;
+	for (int i = 0; i < buffered_bar_width; i++) screen_print(&scr, "█");
+	for (int i = buffered_bar_width; i < 30; i++) screen_print(&scr, "░");
 	SET_TEXT();
-	screen_print(&scr, "   Current: ");
+	screen_printf(&scr, "  %5.1f%% (%zu frames)", buffered_percent, metrics->frames_buffered_io);
+	if (buffered_percent > 20) {
+		SET_WARNING();
+		screen_print(&scr, " ⚠");
+	}
+	RESET_COLOR();
+	row++;
+
+	/* Current I/O mode */
+	SET_TEXT();
+	screen_move(&scr, row, 2);
+	screen_print(&scr, "  Current Mode: ");
 	SET_VALUE();
 	screen_print(&scr, metrics->current_io_mode == IO_MODE_DIRECT ?
-				   "Direct" :
-				   "Buffered");
+				   "Direct I/O" :
+				   "Buffered I/O");
 	RESET_COLOR();
+	row++;
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────
@@ -906,22 +948,46 @@ static void render_latency(tui_app_state_t *state, tui_metrics_t *metrics,
 
 	/* Percentiles if available */
 	if (metrics->latency_p50_ns > 0 || metrics->latency_p95_ns > 0) {
+		row++;
+		SET_HIGHLIGHT();
+		draw_text(row++, 2, "Percentiles:");
+		RESET_COLOR();
+
+		/* P50 - Median */
 		SET_TEXT();
 		screen_move(&scr, row, 2);
-		screen_print(&scr, "  P50: ");
-		SET_VALUE();
-		screen_printf(&scr, "%.2fms",
+		screen_print(&scr, "  P50:  ");
+		SET_SUCCESS();
+		screen_printf(&scr, "%-8.2fms",
 			      (double)metrics->latency_p50_ns / 1e6);
 		SET_TEXT();
-		screen_print(&scr, "   P95: ");
+		screen_print(&scr, " ✓ Good");
+		RESET_COLOR();
+		row++;
+
+		/* P95 - 95th percentile */
+		SET_TEXT();
+		screen_move(&scr, row, 2);
+		screen_print(&scr, "  P95:  ");
 		SET_WARNING();
-		screen_printf(&scr, "%.2fms",
+		screen_printf(&scr, "%-8.2fms",
 			      (double)metrics->latency_p95_ns / 1e6);
 		SET_TEXT();
-		screen_print(&scr, "   P99: ");
+		screen_print(&scr, " ⚠ Fair");
+		RESET_COLOR();
+		row++;
+
+		/* P99 - 99th percentile */
+		SET_TEXT();
+		screen_move(&scr, row, 2);
+		screen_print(&scr, "  P99:  ");
 		SET_ERROR();
-		screen_printf(&scr, "%.2fms",
+		screen_printf(&scr, "%-8.2fms",
 			      (double)metrics->latency_p99_ns / 1e6);
+		SET_TEXT();
+		screen_print(&scr, " ✗ Slow");
+		RESET_COLOR();
+		row++;
 		RESET_COLOR();
 	}
 
