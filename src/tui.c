@@ -32,6 +32,7 @@
 #endif
 
 #include "tui.h"
+#include "tui_format.h"
 
 /* Sparkline characters representing 8 intensity levels */
 const char *TUI_SPARK_CHARS[8] = { "▁", "▂", "▃", "▄", "▅", "▆", "▇", "█" };
@@ -335,6 +336,10 @@ void tui_render(tui_metrics_t *metrics)
 		metrics->frame_time_avg_ns = avg_frame_time_ns;
 	}
 
+	/* Calculate ETA and trend */
+	calculate_eta(metrics);
+	detect_latency_trend(metrics);
+
 	/* Calculate progress */
 	int percent = 0;
 	if (metrics->frames_total > 0) {
@@ -415,18 +420,46 @@ void tui_render(tui_metrics_t *metrics)
 	print_pad(W - len);
 	printf("\xe2\x94\x82\n");
 
+	/* Row 8b: Elapsed/ETA/Total time */
+	char elapsed_str[32], eta_str[32], total_str[32];
+	format_time_human(metrics->elapsed_ns, elapsed_str, sizeof(elapsed_str));
+
+	if (metrics->frames_completed >= 5) {
+		format_time_human(metrics->eta_ns, eta_str, sizeof(eta_str));
+		format_time_human(metrics->total_estimated_ns, total_str,
+				  sizeof(total_str));
+		len = snprintf(line, sizeof(line),
+			       "  Elapsed: %s | ETA: %s | Total: ~%s", elapsed_str,
+			       eta_str, total_str);
+	} else {
+		len = snprintf(line, sizeof(line), "  Elapsed: %s | ETA: Calculating...",
+			       elapsed_str);
+	}
+	printf("\xe2\x94\x82%s", line);
+	print_pad(W - len);
+	printf("\xe2\x94\x82\n");
+
 	/* Row 9: Separator */
 	printf("\xe2\x94\x9c");
 	for (int i = 0; i < W; i++)
 		printf("\xe2\x94\x80");
 	printf("\xe2\x94\xa4\n");
 
-	/* Row 10: Throughput */
+	/* Row 10: Throughput with MB/s */
+	double throughput_mbs = throughput_mibs * 1.048576;
 	len = snprintf(line, sizeof(line),
-		       "  Throughput: %.1f MiB/s   IOPS: %.0f", throughput_mibs,
-		       iops);
-	printf("\xe2\x94\x82  Throughput: %s%.1f MiB/s%s   IOPS: %.0f",
-	       TUI_CYAN, throughput_mibs, TUI_RESET, iops);
+		       "  Throughput: %.1f MiB/s (%.1f MB/s)  IOPS: %.0f",
+		       throughput_mibs, throughput_mbs, iops);
+	printf("\xe2\x94\x82  Throughput: %s%.1f MiB/s (%.1f MB/s)%s  IOPS: %.0f",
+	       TUI_CYAN, throughput_mibs, throughput_mbs, TUI_RESET, iops);
+	print_pad(W - len);
+	printf("\xe2\x94\x82\n");
+
+	/* Row 10b: Bytes transferred */
+	char bytes_str[64];
+	format_bytes_human(metrics->bytes_written, bytes_str, sizeof(bytes_str));
+	len = snprintf(line, sizeof(line), "  Bytes: %s", bytes_str);
+	printf("\xe2\x94\x82%s", line);
 	print_pad(W - len);
 	printf("\xe2\x94\x82\n");
 
@@ -437,9 +470,13 @@ void tui_render(tui_metrics_t *metrics)
 	print_pad(W - len);
 	printf("\xe2\x94\x82\n");
 
-	/* Row 12: Latency Min/Max */
-	len = snprintf(line, sizeof(line), "              Min: %-8s  Max: %-8s",
-		       lat_min, lat_max);
+	/* Row 12: Latency Min/Max with Trend */
+	const char *trend_arrow = get_trend_arrow(metrics->latency_trend);
+	const char *trend_text = metrics->latency_trend > 0 ? "Improving" :
+				 metrics->latency_trend < 0 ? "Degrading" : "Stable";
+	len = snprintf(line, sizeof(line),
+		       "              Min: %-8s  Max: %-8s  Trend: %s %s",
+		       lat_min, lat_max, trend_arrow, trend_text);
 	printf("\xe2\x94\x82%s", line);
 	print_pad(W - len);
 	printf("\xe2\x94\x82\n");

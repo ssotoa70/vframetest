@@ -102,6 +102,11 @@ typedef struct tui_metrics_t {
 	/* Success metrics */
 	double success_rate_percent;
 
+	/* ETA and trend tracking (added for dashboard enhancements) */
+	uint64_t eta_ns;              /* Estimated time remaining */
+	uint64_t total_estimated_ns;  /* Total expected test duration */
+	int latency_trend;            /* -1=degrading, 0=stable, 1=improving */
+
 	/* Sparkline history for latency visualization */
 	uint64_t sparkline_history[TUI_SPARKLINE_SIZE];
 	int sparkline_idx;
