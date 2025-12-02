@@ -64,6 +64,28 @@ static profile_t profiles[] = {
 	{ "EXR-FULLHD-float", PROF_EXR, 1920, 1080, 12, 0 },
 	{ "EXR-4K-float", PROF_EXR, 3840, 2160, 12, 0 },
 	{ "EXR-8K-float", PROF_EXR, 7680, 4320, 12, 0 },
+	/* 2K EXR Profiles (missing format coverage) */
+	{ "EXR-2K-half", PROF_EXR, 2048, 1080, 6, 0 },
+	{ "EXR-2K-float", PROF_EXR, 2048, 1080, 12, 0 },
+	{ "EXR-2K-full-half", PROF_EXR, 2048, 1556, 6, 0 },
+	{ "EXR-2K-full-float", PROF_EXR, 2048, 1556, 12, 0 },
+	/* DCI 4K Profiles (4096x2160) */
+	{ "4K-DCI-16bit", PROF_4K, 4096, 2160, 2, 0 },
+	{ "4K-DCI-24bit", PROF_4K, 4096, 2160, 3, 0 },
+	{ "4K-DCI-32bit", PROF_4K, 4096, 2160, 4, 0 },
+	{ "DPX-4K-DCI-10bit", PROF_DPX, 4096, 2160, 4, 8192 },
+	{ "EXR-4K-DCI-half", PROF_EXR, 4096, 2160, 6, 0 },
+	{ "EXR-4K-DCI-float", PROF_EXR, 4096, 2160, 12, 0 },
+	/* DCI 8K Profiles (8192x4320) */
+	{ "8K-DCI-16bit", PROF_8K, 8192, 4320, 2, 0 },
+	{ "8K-DCI-24bit", PROF_8K, 8192, 4320, 3, 0 },
+	{ "8K-DCI-32bit", PROF_8K, 8192, 4320, 4, 0 },
+	{ "DPX-8K-DCI-10bit", PROF_DPX, 8192, 4320, 4, 8192 },
+	{ "EXR-8K-DCI-half", PROF_EXR, 8192, 4320, 6, 0 },
+	{ "EXR-8K-DCI-float", PROF_EXR, 8192, 4320, 12, 0 },
+	/* SD PAL Profiles (720x576) */
+	{ "SD-PAL-24bit", PROF_SD, 720, 576, 3, 0 },
+	{ "DPX-SD-PAL-10bit", PROF_DPX, 720, 576, 4, 8192 },
 	{ "empty", PROF_CUSTOM, 0, 0, 0, 0 },
 };
 static size_t profile_cnt = sizeof(profiles) / sizeof(profiles[0]);
