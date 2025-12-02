@@ -393,7 +393,7 @@ Phase 4 represents the most significant enhancement to vframetest since the proj
 
 ✅ **Cross-Platform Tests**:
 - macOS (arm64, x86_64)
-- Linux (glibc)
+- Linux (x86_64)
 - Windows (MinGW, MSYS2)
 
 ✅ **Performance Tests**:

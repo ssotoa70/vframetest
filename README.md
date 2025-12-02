@@ -110,7 +110,7 @@ vframetest -w FULLHD-24bit -t 4 -n 100 test-data
 
 | Aspect             | Details                                                         |
 | ------------------ | --------------------------------------------------------------- |
-| **Platforms**      | macOS 10.13+, Linux (glibc), Windows 10+                        |
+| **Platforms**      | macOS 10.13+, Linux (x86_64), Windows 10+                      |
 | **Architectures**  | arm64, x86_64, i686, universal (macOS)                          |
 | **Frame Sizes**    | SD (720×480), HD (1280×720), FULLHD (1920×1080), 4K, 8K, custom |
 | **Threading**      | 1 to 16+ concurrent threads                                     |
