@@ -152,9 +152,9 @@ static void tui_progress_callback(void *ctx, size_t frames_done,
 	__sync_fetch_and_add(&progress->frames_completed, 1);
 	__sync_fetch_and_add(&progress->bytes_written, bytes_written);
 
-	/* These don't need to be precise - just last value seen */
-	progress->last_frame_time_ns = frame_time_ns;
-	progress->last_io_mode = io_mode;
+	/* Use atomic operations for frame time to prevent data races with 16 threads */
+	__sync_lock_test_and_set(&progress->last_frame_time_ns, frame_time_ns);
+	__sync_lock_test_and_set(&progress->last_io_mode, (volatile int)io_mode);
 
 	if (success)
 		__sync_fetch_and_add(&progress->frames_succeeded, 1);

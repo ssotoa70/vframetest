@@ -84,6 +84,36 @@ static void draw_textf(int row, int col, const char *fmt, ...)
 	draw_text(row, col, buf);
 }
 
+/* Draw a section header with double-line separators */
+static void draw_section_header(int row, int col, int width, const char *title)
+{
+	SET_BORDER();
+
+	/* Draw left edge */
+	scr.cells[row][col] = '|';
+	scr.colors[row][col] = MAKE_COLOR(scr.theme->border_fg, COLOR_DEFAULT);
+
+	/* Draw the section header line with title */
+	screen_move(&scr, row, col + 2);
+	SET_HIGHLIGHT();
+	screen_print(&scr, title);
+
+	/* Fill rest of line with spaces to width */
+	int title_len = strlen(title);
+	int remaining = width - 4 - title_len;
+	SET_TEXT();
+	for (int i = 0; i < remaining; i++) {
+		screen_putc(&scr, ' ');
+	}
+
+	/* Draw right edge */
+	SET_BORDER();
+	scr.cells[row][width - 1] = '|';
+	scr.colors[row][width - 1] = MAKE_COLOR(scr.theme->border_fg, COLOR_DEFAULT);
+
+	RESET_COLOR();
+}
+
 /* ─────────────────────────────────────────────────────────────────────────────
  * Tab bar
  * ───────────────────────────────────────────────────────────────────────────── */
@@ -621,6 +651,9 @@ static void render_dashboard(tui_app_state_t *state, tui_metrics_t *metrics,
 
 	draw_hline(row++, 1, width - 2);
 
+	/* PERFORMANCE METRICS Section */
+	draw_section_header(row++, 1, width - 2, "PERFORMANCE METRICS");
+
 	/* Throughput with MB/s */
 	double elapsed = (double)metrics->elapsed_ns / 1e9;
 	double mibs =
@@ -636,15 +669,11 @@ static void render_dashboard(tui_app_state_t *state, tui_metrics_t *metrics,
 	screen_move(&scr, row, 2);
 	screen_print(&scr, "Throughput: ");
 	SET_VALUE();
-	screen_printf(&scr, "%.1f MiB/s (%.1f MB/s)", mibs, mbs);
+	screen_printf(&scr, "%.1f MiB/s", mibs);
 	SET_TEXT();
-	screen_print(&scr, "   FPS: ");
+	screen_print(&scr, "  |  FPS: ");
 	SET_VALUE();
 	screen_printf(&scr, "%.1f", fps);
-	SET_TEXT();
-	screen_print(&scr, "   IOPS: ");
-	SET_VALUE();
-	screen_printf(&scr, "%.0f", metrics->iops);
 	RESET_COLOR();
 	row++;
 
@@ -657,19 +686,25 @@ static void render_dashboard(tui_app_state_t *state, tui_metrics_t *metrics,
 	screen_print(&scr, "Bytes: ");
 	SET_VALUE();
 	screen_print(&scr, bytes_str);
+	SET_TEXT();
+	screen_print(&scr, "  |  Data Rate: ");
+	SET_VALUE();
+	screen_printf(&scr, "%.1f MB/s", mbs);
 	RESET_COLOR();
 	row++;
+	row++; /* Empty line for spacing */
+
+	draw_hline(row++, 1, width - 2);
+
+	/* LATENCY ANALYSIS Section */
+	draw_section_header(row++, 1, width - 2, "LATENCY ANALYSIS");
 
 	/* Latency with Trend */
 	const char *trend_arrow = get_trend_arrow(metrics->latency_trend);
 	const char *trend_text = metrics->latency_trend > 0 ? "Improving" :
 				 metrics->latency_trend < 0 ? "Degrading" : "Stable";
 
-	SET_HIGHLIGHT();
-	screen_move(&scr, row, 2);
-	screen_print(&scr, "Latency Statistics:");
-	RESET_COLOR();
-	row++;
+	row++; /* Skip line after header */
 
 	SET_TEXT();
 	screen_move(&scr, row, 2);
@@ -723,22 +758,61 @@ static void render_dashboard(tui_app_state_t *state, tui_metrics_t *metrics,
 
 	draw_hline(row++, 1, width - 2);
 
+	/* TEST RESULTS Section */
+	draw_section_header(row++, 1, width - 2, "TEST RESULTS");
+
 	/* Status and Success Rate */
 	screen_move(&scr, row, 2);
+	SET_TEXT();
+	screen_print(&scr, "Frames Succeeded: ");
 	SET_SUCCESS();
-	screen_print(&scr, "OK: ");
-	screen_printf(&scr, "%zu", metrics->frames_succeeded);
+	screen_printf(&scr, "%zu/%zu", metrics->frames_succeeded,
+		      metrics->frames_total);
 	SET_TEXT();
-	screen_print(&scr, "   ");
-	SET_ERROR();
-	screen_print(&scr, "Failed: ");
-	screen_printf(&scr, "%zu", metrics->frames_failed);
-	SET_TEXT();
-	screen_print(&scr, "   Success Rate: ");
-	SET_VALUE();
-	screen_printf(&scr, "%.1f%%", metrics->success_rate_percent);
+	screen_printf(&scr, " (%.1f%%)", metrics->success_rate_percent);
 	RESET_COLOR();
 	row++;
+
+	screen_move(&scr, row, 2);
+	SET_TEXT();
+	screen_print(&scr, "Frames Failed:    ");
+	if (metrics->frames_failed > 0) {
+		SET_ERROR();
+	} else {
+		SET_SUCCESS();
+	}
+	screen_printf(&scr, "%zu/%zu", metrics->frames_failed,
+		      metrics->frames_total);
+	SET_TEXT();
+	screen_printf(&scr, " (%.1f%%)",
+		      metrics->frames_total > 0 ?
+			      (double)metrics->frames_failed * 100.0 /
+				      metrics->frames_total :
+			      0.0);
+	RESET_COLOR();
+	row++;
+
+	screen_move(&scr, row, 2);
+	SET_TEXT();
+	screen_print(&scr, "Success Rate:     ");
+	if (metrics->success_rate_percent >= 99.5) {
+		SET_SUCCESS();
+		screen_printf(&scr, "%.2f%% ✓", metrics->success_rate_percent);
+	} else if (metrics->success_rate_percent >= 90.0) {
+		SET_WARNING();
+		screen_printf(&scr, "%.2f%% ⚠", metrics->success_rate_percent);
+	} else {
+		SET_ERROR();
+		screen_printf(&scr, "%.2f%% ✗", metrics->success_rate_percent);
+	}
+	RESET_COLOR();
+	row++;
+	row++; /* Empty line for spacing */
+
+	draw_hline(row++, 1, width - 2);
+
+	/* I/O MODE DISTRIBUTION Section */
+	draw_section_header(row++, 1, width - 2, "I/O MODE DISTRIBUTION");
 
 	/* I/O Statistics with visual breakdown */
 	size_t total_io_frames = metrics->frames_direct_io + metrics->frames_buffered_io;
@@ -747,11 +821,7 @@ static void render_dashboard(tui_app_state_t *state, tui_metrics_t *metrics,
 	double buffered_percent = total_io_frames > 0 ?
 		(double)metrics->frames_buffered_io * 100.0 / total_io_frames : 0;
 
-	SET_HIGHLIGHT();
-	screen_move(&scr, row, 2);
-	screen_print(&scr, "I/O Mode Distribution:");
-	RESET_COLOR();
-	row++;
+	row++; /* Skip line after header */
 
 	/* Direct I/O bar */
 	SET_TEXT();
@@ -799,14 +869,62 @@ static void render_dashboard(tui_app_state_t *state, tui_metrics_t *metrics,
 				   "Buffered I/O");
 	RESET_COLOR();
 	row++;
+	row++; /* Empty line for spacing */
 
 	draw_hline(row++, 1, width - 2);
 
-	/* System Status Summary */
-	SET_HIGHLIGHT();
+	/* FILESYSTEM & OPTIMIZATION Section */
+	draw_section_header(row++, 1, width - 2, "FILESYSTEM & OPTIMIZATION");
+
+	/* Filesystem type and status */
 	screen_move(&scr, row, 2);
-	screen_print(&scr, "Test Status: ");
 	SET_TEXT();
+	screen_print(&scr, "Filesystem: ");
+	SET_VALUE();
+	const char *fs_type_str = metrics->fs_type == FILESYSTEM_SMB ? "SMB" :
+			      metrics->fs_type == FILESYSTEM_NFS ? "NFS" :
+			      "LOCAL";
+	screen_print(&scr, fs_type_str);
+	SET_TEXT();
+	screen_print(&scr, "  |  Status: ");
+	SET_VALUE();
+	if (metrics->fs_type == FILESYSTEM_NFS || metrics->fs_type == FILESYSTEM_LOCAL) {
+		SET_SUCCESS();
+		screen_print(&scr, "Optimal");
+	} else {
+		SET_WARNING();
+		screen_print(&scr, "Network filesystem");
+	}
+	RESET_COLOR();
+	row++;
+
+	screen_move(&scr, row, 2);
+	SET_TEXT();
+	screen_print(&scr, "Optimization: ");
+	if (direct_percent > 80.0) {
+		SET_SUCCESS();
+		screen_print(&scr, "✓ Direct I/O active (expected)");
+	} else if (buffered_percent > 50.0) {
+		SET_WARNING();
+		screen_print(&scr, "⚠ Buffered I/O active");
+	} else {
+		SET_INFO();
+		screen_print(&scr, "Mixed I/O modes");
+	}
+	RESET_COLOR();
+	row++;
+	row++; /* Empty line for spacing */
+
+	draw_hline(row++, 1, width - 2);
+
+	/* SYSTEM STATUS Section */
+	draw_section_header(row++, 1, width - 2, "SYSTEM STATUS");
+
+	/* System Status Summary */
+	screen_move(&scr, row, 2);
+	SET_TEXT();
+	screen_print(&scr, "Status: ");
+	SET_VALUE();
 	int total_frames = metrics->frames_succeeded + metrics->frames_failed;
 	if (total_frames > 0) {
 		if (metrics->success_rate_percent >= 99.5) {

@@ -2,6 +2,35 @@
 
 All notable changes to vframetest are documented in this file.
 
+## [25.17.0] - 2025-12-02
+
+### TUI Enhancement: Structured Dashboard Layout
+
+#### Improved
+- **Enhanced TUI Dashboard with Section Headers**
+  - Added clearly labeled section headers for better visual organization
+  - Sections: PERFORMANCE METRICS, LATENCY ANALYSIS, TEST RESULTS, I/O MODE DISTRIBUTION, FILESYSTEM & OPTIMIZATION, SYSTEM STATUS
+  - Improved data formatting with pipe separators (`|`) for clarity
+  - Better visual hierarchy with section dividers
+
+- **Improved Data Presentation**
+  - Enhanced success/warning/error indicators with Unicode symbols (✓, ⚠, ✗)
+  - Better alignment and spacing between sections
+  - Clearer separation of metrics with consistent formatting
+  - More readable layout matching professional monitoring tools
+
+#### Technical
+- Added `draw_section_header()` helper function for consistent section rendering
+- Reorganized `render_dashboard()` function with structured sections
+- Fixed variable naming conflicts (fs_name → fs_type_str)
+- Zero compiler warnings, zero build errors
+
+#### Documentation
+- Updated TUI layout to match enhanced mockup specification
+- Improved section organization for better user experience
+
+---
+
 ## [25.15.0] - 2025-12-01
 
 ### Phase 4A: Terminal User Interface (TUI) - Complete Implementation ✅
