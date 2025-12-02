@@ -10,6 +10,7 @@
 #include <stdarg.h>
 #include "tui_render.h"
 #include "tui_state.h"
+#include "tui_format.h"
 
 static screen_t scr;
 
@@ -507,6 +508,10 @@ static void render_dashboard(tui_app_state_t *state, tui_metrics_t *metrics,
 		return;
 	}
 
+	/* Calculate ETA and trend */
+	calculate_eta(metrics);
+	detect_latency_trend(metrics);
+
 	/* Profile and path */
 	SET_TEXT();
 	screen_move(&scr, row, 2);
@@ -567,15 +572,43 @@ static void render_dashboard(tui_app_state_t *state, tui_metrics_t *metrics,
 	RESET_COLOR();
 	row++;
 
+	/* Elapsed/ETA/Total time */
+	char elapsed_str[32], eta_str[32], total_str[32];
+	format_time_human(metrics->elapsed_ns, elapsed_str, sizeof(elapsed_str));
+
+	SET_TEXT();
+	screen_move(&scr, row, 2);
+	screen_print(&scr, "Elapsed: ");
+	SET_VALUE();
+	screen_print(&scr, elapsed_str);
+	SET_TEXT();
+	screen_print(&scr, "   ETA: ");
+	SET_VALUE();
+	if (metrics->frames_completed >= 5) {
+		format_time_human(metrics->eta_ns, eta_str, sizeof(eta_str));
+		screen_print(&scr, eta_str);
+		SET_TEXT();
+		screen_print(&scr, "   Total: ~");
+		SET_VALUE();
+		format_time_human(metrics->total_estimated_ns, total_str,
+				  sizeof(total_str));
+		screen_print(&scr, total_str);
+	} else {
+		screen_print(&scr, "Calculating...");
+	}
+	RESET_COLOR();
+	row++;
+
 	draw_hline(row++, 1, width - 2);
 
-	/* Throughput */
+	/* Throughput with MB/s */
 	double elapsed = (double)metrics->elapsed_ns / 1e9;
 	double mibs =
 		elapsed > 0 ?
 			((double)metrics->bytes_written / (1024.0 * 1024.0)) /
 				elapsed :
 			0;
+	double mbs = mibs * 1.048576;
 	double fps = elapsed > 0 ? (double)metrics->frames_completed / elapsed :
 				   0;
 
@@ -583,15 +616,31 @@ static void render_dashboard(tui_app_state_t *state, tui_metrics_t *metrics,
 	screen_move(&scr, row, 2);
 	screen_print(&scr, "Throughput: ");
 	SET_VALUE();
-	screen_printf(&scr, "%.1f", mibs);
+	screen_printf(&scr, "%.1f MiB/s (%.1f MB/s)", mibs, mbs);
 	SET_TEXT();
-	screen_print(&scr, " MiB/s   FPS: ");
+	screen_print(&scr, "   FPS: ");
 	SET_VALUE();
 	screen_printf(&scr, "%.1f", fps);
 	RESET_COLOR();
 	row++;
 
-	/* Latency */
+	/* Bytes transferred */
+	char bytes_str[64];
+	format_bytes_human(metrics->bytes_written, bytes_str, sizeof(bytes_str));
+
+	SET_TEXT();
+	screen_move(&scr, row, 2);
+	screen_print(&scr, "Bytes: ");
+	SET_VALUE();
+	screen_print(&scr, bytes_str);
+	RESET_COLOR();
+	row++;
+
+	/* Latency with Trend */
+	const char *trend_arrow = get_trend_arrow(metrics->latency_trend);
+	const char *trend_text = metrics->latency_trend > 0 ? "Improving" :
+				 metrics->latency_trend < 0 ? "Degrading" : "Stable";
+
 	SET_TEXT();
 	screen_move(&scr, row, 2);
 	screen_print(&scr, "Latency: Min: ");
@@ -601,6 +650,10 @@ static void render_dashboard(tui_app_state_t *state, tui_metrics_t *metrics,
 	screen_print(&scr, "  Max: ");
 	SET_VALUE();
 	screen_printf(&scr, "%.2fms", (double)metrics->latency_max_ns / 1e6);
+	SET_TEXT();
+	screen_print(&scr, "  Trend: ");
+	SET_VALUE();
+	screen_printf(&scr, "%s %s", trend_arrow, trend_text);
 	RESET_COLOR();
 	row++;
 
