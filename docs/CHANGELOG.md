@@ -2,6 +2,34 @@
 
 All notable changes to vframetest are documented in this file.
 
+## [25.17.2] - 2025-12-02
+
+### TUI Enhancement: Complete PROGRESS Section Implementation
+
+#### Fixed
+- **Added Missing PROGRESS Section Header**
+  - Added `PROGRESS` section header with divider to match mockup specification
+  - Section now properly displays: `║ PROGRESS ║` with dedicated section
+  - Improved visual consistency across all dashboard sections
+
+#### Improved
+- **Progress Bar Formatting**
+  - Updated format from `Progress: [...] 45% 45/100 frames` to `[...] 45% (45/100)`
+  - Matches mockup specification exactly with parenthetical frame count
+  - Cleaner, more compact display
+
+- **Time Display Formatting**
+  - Changed from space separators to pipe separators: `Elapsed: X  |  ETA: Y  |  Total: ~Z`
+  - Improved readability and visual consistency with other sections
+  - Added spacing line after time display for better section separation
+
+#### Technical
+- Zero compiler warnings, zero build errors
+- All 7 section headers now properly displayed (PROGRESS, PERFORMANCE METRICS, LATENCY ANALYSIS, TEST RESULTS, I/O MODE DISTRIBUTION, FILESYSTEM & OPTIMIZATION, SYSTEM STATUS)
+- Structure now matches original mockup specification
+
+---
+
 ## [25.17.1] - 2025-12-02
 
 ### TUI Enhancement: Double-Line Box Drawing Characters
