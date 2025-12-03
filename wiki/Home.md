@@ -4,13 +4,17 @@ vframetest is an enterprise-grade storage performance testing tool that evolved 
 
 ## Quick Links
 
-- **[Project Evolution](Project-Evolution)** - How vframetest evolved from the original implementation
+### 📖 Essential Documentation
+- **[Parameter Reference](Parameter-Reference)** - ⭐ **NEW!** Complete guide to all command-line parameters with examples
 - **[Features Guide](Features-Guide)** - Complete documentation of all features with examples
+
+### 📊 Project Information
+- **[Project Evolution](Project-Evolution)** - How vframetest evolved from the original implementation
 - **[Phase 1 Report](Phase-1-Completion)** - Error handling and filesystem detection implementation
 
 ## Latest Version
 
-**v25.11.23** - Phase 1 Complete with comprehensive error tracking and filesystem detection
+**v25.17.2** - Phase 4 Complete with TUI Dashboard, Interactive Mode, and Complete Parameter Documentation
 
 ## Quick Start
 
