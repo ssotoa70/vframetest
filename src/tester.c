@@ -333,7 +333,7 @@ test_result_t tester_run_write(const platform_t *platform, const char *path,
 			/* Phase 2: Continue instead of break to allow test to continue */
 			continue;
 		}
-		res.completion[i - start_frame].frame = timing_start();
+		res.completion[i - start_frame].frame = timing_elapsed(frame_start);
 		++res.frames_written;
 		res.frames_succeeded++;
 		res.bytes_written += frame->size;
@@ -512,7 +512,7 @@ test_result_t tester_run_read(const platform_t *platform, const char *path,
 			/* Phase 2: Continue instead of break to allow test to continue */
 			continue;
 		}
-		res.completion[i - start_frame].frame = timing_start();
+		res.completion[i - start_frame].frame = timing_elapsed(frame_start);
 		++res.frames_written;
 		res.frames_succeeded++;
 		res.bytes_written += frame->size;
@@ -710,7 +710,7 @@ test_result_t tester_run_write_cb(const platform_t *platform, const char *path,
 			continue;
 		}
 
-		res.completion[i - start_frame].frame = timing_start();
+		res.completion[i - start_frame].frame = timing_elapsed(frame_start);
 		++res.frames_written;
 		res.frames_succeeded++;
 		res.bytes_written += frame->size;
@@ -847,7 +847,7 @@ test_result_t tester_run_read_cb(const platform_t *platform, const char *path,
 			continue;
 		}
 
-		res.completion[i - start_frame].frame = timing_start();
+		res.completion[i - start_frame].frame = timing_elapsed(frame_start);
 		++res.frames_written;
 		res.frames_succeeded++;
 		res.bytes_written += frame->size;

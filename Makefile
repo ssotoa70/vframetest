@@ -1,6 +1,6 @@
 MAJOR=25
 MINOR=17
-PATCH=2
+PATCH=3
 CFLAGS+=-std=c99 -O2 -Wall -Werror -Wpedantic -pedantic-errors -DMAJOR=$(MAJOR) -DMINOR=$(MINOR) -DPATCH=$(PATCH)
 LDFLAGS+=-pthread
 SRC_DIR=src
