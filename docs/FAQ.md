@@ -44,6 +44,27 @@ A: I/O errors during frame operations. 0 is expected under normal conditions. No
 ### Q: Why is my remote filesystem slower?
 A: Network storage has inherent latency and is bound by network bandwidth. vframetest warns about remote filesystems for this reason.
 
+## Latency Metrics & Accuracy
+
+### Q: Should I upgrade to v25.17.4?
+A: **YES - IMMEDIATELY** if you're using v25.17.3 or earlier. v25.17.4 fixes a critical bug where latency values were reported as 2.6×10^15 times larger than actual. Example: A 6.97ms latency was reported as 18+ quadrillion milliseconds in v25.17.3.
+
+### Q: How do I know if I need to upgrade?
+A: Upgrade to v25.17.4 if:
+- You're using vframetest v25.17.3 or earlier
+- You use completion time metrics (min/avg/max latency)
+- You benchmark storage performance and track completion times
+
+### Q: What about my old benchmark results?
+A: Benchmark results using v25.17.3 or earlier that relied on completion time metrics are inaccurate. After upgrading to v25.17.4:
+1. Discard old completion time results
+2. Re-run tests with v25.17.4
+3. Use v25.17.4 results as your new baseline
+4. Compare all future tests against the v25.17.4 baseline
+
+### Q: Will v25.17.4 break my workflow?
+A: No. The upgrade is transparent - same command-line arguments, no configuration changes needed. Simply upgrade and continue as before.
+
 ## Performance
 
 ### Q: Why are my results inconsistent?

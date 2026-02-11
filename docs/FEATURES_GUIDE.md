@@ -1,8 +1,10 @@
-# vframetest v25.11.23 - Complete Features Guide
+# vframetest v25.17.4 - Complete Features Guide
 
-**Current Version**: 25.11.23
-**Phase**: 1 Complete, 2 In Progress
-**Last Updated**: November 25, 2025
+**Current Version**: 25.17.4
+**Phase**: 4 Complete (TUI, REST API, Integration)
+**Last Updated**: February 10, 2025
+
+> **CRITICAL**: v25.17.4 fixes a critical latency calculation bug from v25.17.3 and earlier. If you're using completion time metrics, upgrade immediately. Latency values in v25.17.3 and earlier were reported as 2.6×10^15 times larger than actual.
 
 ---
 

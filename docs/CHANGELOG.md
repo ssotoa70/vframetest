@@ -2,7 +2,7 @@
 
 All notable changes to vframetest are documented in this file.
 
-## [25.17.2] - 2025-12-02
+## [25.17.2] - 2025-02-02
 
 ### TUI Enhancement: Complete PROGRESS Section Implementation
 
@@ -30,7 +30,7 @@ All notable changes to vframetest are documented in this file.
 
 ---
 
-## [25.17.1] - 2025-12-02
+## [25.17.1] - 2025-02-02
 
 ### TUI Enhancement: Double-Line Box Drawing Characters
 
@@ -56,7 +56,7 @@ All notable changes to vframetest are documented in this file.
 
 ---
 
-## [25.17.0] - 2025-12-02
+## [25.17.0] - 2025-02-01
 
 ### TUI Enhancement: Structured Dashboard Layout
 

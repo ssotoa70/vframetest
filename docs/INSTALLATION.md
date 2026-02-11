@@ -11,9 +11,9 @@ vframetest --version
 
 ### Manual Installation (Pre-built Binary)
 ```bash
-curl -L -O https://github.com/ssotoa70/vframetest/releases/download/v25.11.23/vframetest-25.11.23-macos-universal
-chmod +x vframetest-25.11.23-macos-universal
-mv vframetest-25.11.23-macos-universal /usr/local/bin/vframetest
+curl -L -O https://github.com/ssotoa70/vframetest/releases/download/v25.17.4/vframetest-25.17.4-macos-universal
+chmod +x vframetest-25.17.4-macos-universal
+mv vframetest-25.17.4-macos-universal /usr/local/bin/vframetest
 vframetest --version
 ```
 
@@ -29,9 +29,9 @@ make clean && make -j4
 
 ### Pre-built Binary
 ```bash
-wget https://github.com/ssotoa70/vframetest/releases/download/v25.11.23/vframetest-25.11.23-linux-x86_64
-chmod +x vframetest-25.11.23-linux-x86_64
-sudo mv vframetest-25.11.23-linux-x86_64 /usr/local/bin/vframetest
+wget https://github.com/ssotoa70/vframetest/releases/download/v25.17.4/vframetest-25.17.4-linux-x86_64
+chmod +x vframetest-25.17.4-linux-x86_64
+sudo mv vframetest-25.17.4-linux-x86_64 /usr/local/bin/vframetest
 vframetest --version
 ```
 
@@ -51,12 +51,12 @@ vframetest --version
 
 ### Pre-built Executable
 Download from [GitHub Releases](https://github.com/ssotoa70/vframetest/releases):
-- `vframetest-25.11.23-windows-x86_64.exe` (64-bit)
-- `vframetest-25.11.23-windows-i686.exe` (32-bit)
+- `vframetest-25.17.4-windows-x86_64.exe` (64-bit)
+- `vframetest-25.17.4-windows-i686.exe` (32-bit)
 
 ```powershell
 # Download and place in system PATH, or run directly:
-.\vframetest-25.11.23-windows-x86_64.exe --version
+.\vframetest-25.17.4-windows-x86_64.exe --version
 ```
 
 ### Build from Source
