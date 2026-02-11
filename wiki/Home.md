@@ -14,7 +14,9 @@ vframetest is an enterprise-grade storage performance testing tool that evolved 
 
 ## Latest Version
 
-**v25.17.2** - Phase 4 Complete with TUI Dashboard, Interactive Mode, and Complete Parameter Documentation
+**v25.17.4** - Critical Latency Bug Fix (Unsigned Integer Underflow)
+
+See **[Release Notes for v25.17.4](Release-v25-17-4)** for details on this critical fix affecting latency metrics.
 
 ## Quick Start
 
@@ -36,5 +38,5 @@ vframetest -w FULLHD-24bit -t 4 -n 100 /mnt/storage
 ## More Information
 
 - [GitHub Repository](https://github.com/ssotoa70/vframetest)
-- [Latest Release](https://github.com/ssotoa70/vframetest/releases/tag/v25.11.23)
+- [Latest Release](https://github.com/ssotoa70/vframetest/releases/tag/v25.17.4)
 - [GitHub Issues](https://github.com/ssotoa70/vframetest/issues)
