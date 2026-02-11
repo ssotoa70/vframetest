@@ -81,7 +81,6 @@ static void print_stat_about(const test_result_t *res, const char *label,
 		default:
 		case COMP_FRAME:
 			val = res->completion[i].frame;
-			val -= res->completion[i].start;
 			break;
 		}
 
