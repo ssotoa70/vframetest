@@ -2,6 +2,36 @@
 
 All notable changes to vframetest are documented in this file.
 
+## [25.17.4] - 2025-02-10
+
+### Fixed
+- **CRITICAL**: Fixed unsigned integer underflow in latency reporting (COMP_FRAME case)
+  - **Issue**: Line 84 in `src/report.c` was subtracting `res->completion[i].start` from `res->completion[i].frame`, causing unsigned integer underflow
+  - **Impact**: Latency values reported as 2.6×10^15 times larger than actual values
+  - **Example**: Actual latency of 6.97ms reported as 18,446,706,447,820.93ms
+  - **Root Cause**: Incorrect subtraction of start time from completion time in completion statistics calculation
+  - **Files Modified**: `src/report.c` (line 84)
+  - **Fix**: Removed the line performing the subtraction: `val -= res->completion[i].start;`
+  - **Verification**: Testing confirms latency metrics now display correct values
+  - **Impact Assessment**: Critical for users relying on latency metrics; users should upgrade immediately
+
+### Testing
+- Comprehensive benchmarking analysis verified correct latency calculation
+- Confirmed completion time statistics now produce realistic nanosecond values
+- Verified histogram output remains accurate after fix
+- All other metrics unaffected and working correctly
+
+### Technical Details
+- **Before Fix**: Latency reported as ~18 quadrillion milliseconds (wraparound from unsigned integer underflow)
+- **After Fix**: Latency reported as actual measured completion times in milliseconds
+
+### Migration Notes
+- **Urgent**: Users currently using latency metrics should upgrade immediately to v25.17.4
+- No configuration changes required; simply upgrade and re-run tests
+- Previous benchmark results using v25.17.3 or earlier should be discarded as they are inaccurate
+
+---
+
 ## [25.17.3] - 2025-02-03
 
 ### Fixed

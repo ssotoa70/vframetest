@@ -314,8 +314,8 @@ We welcome contributions! See [CONTRIBUTING.md](docs/CONTRIBUTING.md) for:
 | **Phase 4C** | ✅ Complete | Cross-platform testing, Windows fixes, integration tests |
 | **Future** | 🔮 Vision | Web dashboard, distributed testing, cloud integration |
 
-Current Version: **25.16.0** (Phase 4: Complete - TUI, REST API, Integration)
-Latest Release: [v25.16.0](https://github.com/ssotoa70/vframetest/releases/tag/v25.16.0)
+Current Version: **25.17.4** (Phase 4: Complete - TUI, REST API, Integration)
+Latest Release: [v25.17.4](https://github.com/ssotoa70/vframetest/releases/tag/v25.17.4)
 
 ---
 
@@ -349,5 +349,5 @@ See [CONTRIBUTORS.md](CONTRIBUTORS.md) for detailed recognition of architectural
 ---
 
 **Repository**: [ssotoa70/vframetest](https://github.com/ssotoa70/vframetest)
-**Latest Release**: [v25.15.0](https://github.com/ssotoa70/vframetest/releases/tag/v25.15.0)
+**Latest Release**: [v25.17.4](https://github.com/ssotoa70/vframetest/releases/tag/v25.17.4)
 **Documentation**: [Complete Guides](docs/) | [Wiki](/wiki) | [FAQ](docs/FAQ.md)
